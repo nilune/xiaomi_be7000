@@ -48,13 +48,4 @@ TODO:
 ## TODO
 
 - [ ] Логи работают только при ручном запуске
-
 - /etc/init.d/mi_docker disable
-
--
-Option C — /etc/profile.d/custom_path.sh
-
-Best practice for many systems:
-
-sudo nano /etc/profile.d/custom_path.sh
-export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
