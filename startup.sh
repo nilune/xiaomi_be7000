@@ -1,7 +1,7 @@
 #!/bin/sh
 
 # --- Configuration ---
-export USB_DIR="/mnt/usb-1210d517"
+export USB_DIR="/mnt/usb-ef8d1024"
 export SYSTEM_DIR="${USB_DIR}/System"
 
 exec >> "/data/usr/log/startup.log" 2>&1
@@ -9,9 +9,12 @@ exec >> "/data/usr/log/startup.log" 2>&1
 echo "===== $(date '+%F %T') /data/startup.sh started ====="
 mkdir -p "/data/usr/bin" "/data/usr/share"
 
-# --- Set up system path ---
+# --- Set up system path and system settings ---
 mkdir -p /etc/profile.d
-echo "export PATH=${USB_DIR}/mi_docker/docker-binaries:${PATH}" > /etc/profile.d/custom.sh
+cat > /etc/profile.d/custom.sh <<EOF
+export ROUTER_USB_DIR=${USB_DIR}
+export PATH=${USB_DIR}/mi_docker/docker-binaries:${PATH}
+EOF
 
 # --- Function for starting all components ---
 do_startup() {
