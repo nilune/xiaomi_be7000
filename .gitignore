@@ -1,0 +1,12 @@
+# OS files
+.DS_Store
+
+# Patcher
+xmir-patcher
+
+# Temporary files
+tmp/**
+!tmp/.gitkeep
+
+# Backups
+**/backup
