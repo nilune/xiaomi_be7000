@@ -3,6 +3,7 @@
 # --- Configuration ---
 ADGUARD_DIR="${SYSTEM_DIR}/adGuardHome"
 mkdir -p "${ADGUARD_DIR}/workdir" "${ADGUARD_DIR}/log"
+touch "${ADGUARD_DIR}/adguardhome.yaml"
 
 exec >> "${ADGUARD_DIR}/startup.log" 2>&1
 echo "===== $(date '+%F %T') adguardhome startup started ====="

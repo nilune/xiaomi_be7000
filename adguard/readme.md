@@ -1,5 +1,15 @@
 # AdGuardHome
 
+- [Установка](#установка)
+- [Настройка](#настройка)
+- [Обновление](#обновление)
+- [Удаление](#удаление)
+- [Дополнительно](#дополнительно)
+  - [Работа с сервисом](#работа-с-сервисом)
+  - [Бекап](#бекап)
+    - [Настройки сервиса](#настройки-сервиса)
+    - [Настройки dhcp](#настройки-dhcp)
+
 Сервис в первую очередь позволяет явно позволяет мониторить все запросы в вашей сети (кто и к чему обращается). Это в том числе важно, если какие-то запросы надо проксировать через V2ray от всяких умных устройств, но вы не знаете, к кому они идут.
 
 Ну а также этот сервис позволяет блокировать рекламу на уровне DNS, конечно же.
@@ -8,50 +18,219 @@
 
 Сделано на основе инструкции из [тг](https://t.me/xiaomi_be7000/12423) (от @T7m):
 
-1. Скачать пакет `adguardhome_0.107.57-r1_aarch64_generic.ipk` с сайта <https://archive.openwrt.org/releases/24.10.0-rc1/packages/aarch64_generic/packages/>
-2. `ipk` переименовать в `tar.gz`. Распаковать этот архив. Достать из распакованных данных новый архив - `data.tag.gz`, его тоже распаковать и получим необходимую папку `data`.
-3. На внешнем накопителе в папке `System` создать подпапку `adGuardHome` (тут будут храниться все необходимое для adguard home). В эту папку копируем всё из папки `data`:
+1. Скачать пакет `adguardhome` с <https://github.com/AdguardTeam/AdGuardHome/releases>:
 
     ```bash
-    scp -O -r adguardhome_0.107.57-r1_aarch64_generic/data/* root@${ROUTER_ADDRESS:-192.168.31.1}:${USB_DIR:-/mnt/usb-1210d517}/System/adGuardHome
+    export ADGUARDHOME_VERSION=0.107.73
+    wget -qO- "https://github.com/AdguardTeam/AdGuardHome/releases/download/v${ADGUARDHOME_VERSION}/AdGuardHome_linux_arm64.tar.gz" | tar -xzf - -C ./tmp
     ```
 
-4. Копируем обновленные скрипты и конфиги туда же поверх старых (среди изменений: в файле `init` изменена переменная `PROG`):
+2. На внешнем накопителе в папке `System` создать подпапку `adGuardHome` (тут будут храниться все необходимое для adguard home) и пару системных папок:
 
     ```bash
-    scp -O -r adguard/etc/* root@${ROUTER_ADDRESS:-192.168.31.1}:${USB_DIR:-/mnt/usb-1210d517}/System/adGuardHome/etc
+    cd ${ROUTER_USB_DIR}/System
+    mkdir -p adGuardHome/usr/bin/AdGuardHome adGuardHome/etc
     ```
 
-5. Скопировать сам скрипт запуска adguardhome (и убедитесь что в общем скрипте `/data/startup.sh` включен запуск этого скрипта):
+3. Копируем туда на систему сам бинарь и необходимые конфиги:
 
     ```bash
-    scp -O adguard/startup.sh root@${ROUTER_ADDRESS:-192.168.31.1}:/data/services/adguardhome.sh
+    scp -O -r AdGuardHome/AdGuardHome root@${ROUTER_ADDRESS}:${ROUTER_USB_DIR}/System/adGuardHome/usr/bin
+    scp -O -r adguard/etc/* root@${ROUTER_ADDRESS}:${ROUTER_USB_DIR}/System/adGuardHome/etc
     ```
 
-6. TODO: Далее конфигурируем DNS на роутере (чтобы он нам не мешал). открываем <https://openwrt.org/docs/guide-user/services/dns/adguard-home> и делаем все по шагам начиная с секции Setup и ниже.
-7. Тестируем запуск:
+4. Скопировать сам скрипт запуска adguardhome (и убедитесь что в общем скрипте `/data/startup.sh` включен запуск этого скрипта):
+
+    ```bash
+    scp -O adguard/startup.sh root@${ROUTER_ADDRESS}:/data/services/adguardhome.sh
+    ```
+
+5. Далее конфигурируем DNS на роутере согласно [инструкции](https://openwrt.org/docs/guide-user/services/dns/adguard-home) и делаем все по шагам начиная с секции Setup и ниже. Рекомендуется сохранить бекап перед началом! Из основного:
+
+    ```bash
+    cd /etc/config
+
+    # Делаем локальный бекап, но лучше сохраните себе еще куда-нибудь (особенно интересуют разделы dnsmasq, dhcp 'lan', dhcp 'guest')
+    cp dhcp dhcp.bak
+
+    # Меняем сам конфиг (команды изменены, чтобы у нас все работало)
+    dev=$(ifstatus lan | grep \"device | awk '{ print $2 }' | sed 's/[",]//g')
+    NET_ADDR=$(ip -o -4 addr list $dev | awk 'NR==1{ split($4, ip_addr, "/"); print ip_addr[1]; exit }')
+    NET_ADDR6=$(ip -o -6 addr list $dev scope global | awk '$4 ~ /^fd|^fc/ { split($4, ip_addr, "/"); print ip_addr[1]; exit }')
+    echo "Router IPv4 : ""${NET_ADDR}"
+    echo "Router IPv6 : ""${NET_ADDR6}"
+
+    uci set dhcp.@dnsmasq[0].port="54"
+    uci set dhcp.@dnsmasq[0].domain="lan"
+    uci set dhcp.@dnsmasq[0].local="/lan/"
+    uci set dhcp.@dnsmasq[0].expandhosts="1"
+    uci set dhcp.@dnsmasq[0].cachesize="0"
+    uci set dhcp.@dnsmasq[0].noresolv="1"
+    uci -q del dhcp.@dnsmasq[0].server
+
+    uci -q del dhcp.lan.dhcp_option
+    uci -q del dhcp.lan.dns
+
+    uci add_list dhcp.lan.dhcp_option='3,'"${NET_ADDR}"
+    uci add_list dhcp.lan.dhcp_option='6,'"${NET_ADDR}"
+
+    uci add_list dhcp.lan.dhcp_option='15,'"lan"
+
+    uci add_list dhcp.lan.dns="$NET_ADDR6"
+    uci commit dhcp
+    ```
+
+6. Тестируем запуск:
 
     ```bash
     service dnsmasq restart
     service odhcpd restart
     /data/startup.sh
+    # Возможно потребуется ребут роутера
     ```
 
 ## Настройка
 
 Все в дальнейшем настраивается через Web UI на порте **3000** (например, <http://192.168.31.1:3000>). Тут в основном рекомендации, настраивать нужно под себя.
 
-1. Во вкладке **Фильтры** -> **Перезапись DNS запросов** создать имя для своего сервера, чтобы ходить на него не по IP адресу, а по "слову". Например: имя - bunker и адрес - 192.168.31.1.
-2. Сначала в роутере (вкладка **Settings** -> **LAN Settings** -> **DHCP static IP assignment**) проставьте статику для большинства ваших устройств, а после в AdGuardHome во вкладке **Настройки** -> **Настройки клиентов** также их пропишите. Позволит вам проще видеть кто и зачем обращается.
-3. TODO: Во вкладке **Настройки** -> **Настройки DNS**
-4. TODO: свой DNS
+1. Во вкладке **Настройки** -> **Настройки DNS** ставим необходимые DNS сервера. Можно воспользоваться следующим примером (раскоментируйте необходимое), при этом часть DNS серверов доступно только через VPN, поэтому они ожидаемо без него не заработают (настройте доступ к ним в v2ray):
 
-## Обновления и удаления
+    ```txt
+    [/gemini.google.com/chatgpt.com/www.comss.ru/]https://dns.google/dns-query
+    # Yandex
+    https://common.dot.dns.yandex.net/dns-query
+    # AdGuard
+    https://CHANGEME:CHANGEME@d.adguard-dns.com/dns-query
+    #https://dns.adguard-dns.com/dns-query
+    # Google
+    #https://dns.google/dns-query
+    # Comss
+    #https://dns.comss.one/dns-query
+    # Quad
+    #https://dns10.quad9.net/dns-query
+    ```
+
+2. Там же прописать **Bootstrap DNS-серверы**:
+
+    ```txt
+    77.88.8.8
+    77.88.8.1
+    8.8.8.8
+    8.8.4.4
+    1.1.1.1
+    ```
+
+3. В одном из DNS выше прописан пример использования вашего личного DNS в AdGuard. Рекомендуется его создать. Все это можно сделать на сайте <https://adguard-dns.io/ru/dashboard/> после регистрации.
+4. Во вкладке **Фильтры** -> **Черные списки DNS** выставляем следующие фильтры:
+    - **AdGuard DNS filter**
+    - **HaGeZi's Normal Blocklist**
+    - **AdGuard DNS Popup Hosts filter**
+5. Во вкладке **Фильтры** -> **Заблокированные сервисы** выключаем нужные приложения (например, **Max**)
+6. Во вкладке **Фильтры** -> **Перезапись DNS запросов** создать имя для своего сервера, чтобы ходить на него не по IP адресу, а по "слову". Например: имя - bunker и адрес - 192.168.31.1.
+7. Сначала в роутере (вкладка **Settings** -> **LAN Settings** -> **DHCP static IP assignment**) проставьте статику для большинства ваших устройств, а после в AdGuardHome во вкладке **Настройки** -> **Настройки клиентов** также их пропишите. Позволит вам проще видеть кто и зачем обращается.
+
+## Обновление
+
+Для обновления - просто обновите нужные вам компоненты в директории `${ROUTER_USB_DIR}/System/adGuardHome`. В том числе именно таким образом следует обновлять бинарь adguard.
+
+А для получение актуальных `etc` конфигов - взять пакет `adguardhome_0.107.57-r1_aarch64_generic.ipk` с сайта <https://archive.openwrt.org/releases/24.10.0-rc1/packages/aarch64_generic/packages/>. `ipk` переименовать в `tar.gz`. Распаковать этот архив. Достать из распакованных данных новый архив - `data.tag.gz`, его тоже распаковать и получим необходимую папку `data`. В ней подправить нужные конфиги и можно обновляться.
+
+## Удаление
 
 В целом все компоненты сервисы состоят из:
-1. Директории `${USB_DIR:-/mnt/usb-1210d517}/System/adGuardHome` - ее можно просто удалить с помощью `rm -rf <dir>`
+1. Директории `${ROUTER_USB_DIR}/System/adGuardHome` - ее можно просто удалить с помощью `rm -rf <dir>`
 2. Множества симлинков в разных местах, но они будут стерты/бесполезны при перезапуске роутера
 3. Запуска самого компоненты в `/data/startup.sh`
 4. Скрипта запуска в `/data/services/adguardhome.sh`
 
-Поэтому удалив это - вы удалите сервис. Для обновления - просто обновите нужные вам компоненты в директории `${USB_DIR:-/mnt/usb-1210d517}/System/adGuardHome`.
+Поэтому удалив это - вы удалите сервис.
+
+## Дополнительно
+
+### Работа с сервисом
+
+Через команду `service adguardhome help` и подобные команды
+
+### Бекап
+
+#### Настройки сервиса
+
+Можно забекапить путем сохранения файла - `${ROUTER_USB_DIR}/System/adGuardHome/adguardhome.yaml`. Скопировать себе на систему можно следующим образом:
+
+```bash
+mkdir adguard/backup
+scp -O root@${ROUTER_ADDRESS}:${ROUTER_USB_DIR}/System/adGuardHome/adguardhome.yaml adguard/backup
+```
+
+#### Настройки dhcp
+
+Дефолтный файл сохранен в файле `/etc/config/dhcp.bak`, а также выглядит примерно следующим образом:
+
+```txt
+config dnsmasq
+        option domainneeded '1'
+        option boguspriv '1'
+        option filterwin2k '0'
+        option localise_queries '1'
+        option rebind_protection '0'
+        option rebind_localhost '1'
+        option expandhosts '1'
+        option authoritative '1'
+        option leasefile '/tmp/dhcp.leases'
+        option localservice '1'
+        option dnsforwardmax '500'
+        option resolvfile '/tmp/resolv.conf.d/resolv.conf.auto'
+        option local '/lan/'
+
+config dhcp 'lan'
+        option interface 'lan'
+        option start '5'
+        option limit '250'
+        option force '1'
+        option ra_default '1'
+        option ra 'server'
+        option ra_preference 'high'
+        option ra_maxinterval '20'
+        option ra_lifetime '1800'
+        option leasetime '720m'
+        option dhcpv6 'server'
+        list ra_flags 'managed-config'
+        list ra_flags 'other-config'
+
+config dhcp 'wan'
+        option interface 'wan'
+        option ignore '1'
+
+config dhcp 'wan_2'
+        option interface 'wan_2'
+        option ignore '1'
+
+config dhcp 'miot'
+        option interface 'miot'
+        option start '10'
+        option limit '200'
+        option leasetime '1h'
+        option force '1'
+
+config odhcpd 'odhcpd'
+        option maindhcp '0'
+        option leasefile '/tmp/hosts/odhcpd'
+        option leasetrigger '/usr/sbin/odhcpd-update'
+        option loglevel '4'
+
+config dhcp 'guest'
+        option interface 'guest'
+        option start '100'
+        option limit '150'
+        option leasetime '12h'
+        option ra_default '1'
+        option force '1'
+        option ra 'server'
+        option ra_preference 'high'
+        option ra_maxinterval '20'
+        option ra_lifetime '1800'
+        list ra_flags 'managed-config'
+        list ra_flags 'other-config'
+        option router '192.168.33.1'
+        option dns1 '192.168.33.1'
+```
