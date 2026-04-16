@@ -29,14 +29,14 @@
 
     ```bash
     cd ${ROUTER_USB_DIR}/System
-    mkdir -p adGuardHome/usr/bin/AdGuardHome adGuardHome/etc
+    mkdir -p adGuardHome/usr/bin
     ```
 
 3. Копируем туда на систему сам бинарь и необходимые конфиги:
 
     ```bash
-    scp -O -r AdGuardHome/AdGuardHome root@${ROUTER_ADDRESS}:${ROUTER_USB_DIR}/System/adGuardHome/usr/bin
-    scp -O -r adguard/etc/* root@${ROUTER_ADDRESS}:${ROUTER_USB_DIR}/System/adGuardHome/etc
+    scp -O -r tmp/AdGuardHome/AdGuardHome root@${ROUTER_ADDRESS}:${ROUTER_USB_DIR}/System/adGuardHome/usr/bin
+    scp -O -r adguard/etc root@${ROUTER_ADDRESS}:${ROUTER_USB_DIR}/System/adGuardHome
     ```
 
 4. Скопировать сам скрипт запуска adguardhome (и убедитесь что в общем скрипте `/data/startup.sh` включен запуск этого скрипта):
