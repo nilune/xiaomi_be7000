@@ -36,7 +36,7 @@
 3. Копируем туда на систему сам бинарь и необходимые конфиги:
 
     ```bash
-    scp -O -r tmp/AdGuardHome/AdGuardHome root@${ROUTER_ADDRESS}:${ROUTER_USB_DIR}/System/adGuardHome/usr/bin
+    scp -O tmp/AdGuardHome/AdGuardHome root@${ROUTER_ADDRESS}:${ROUTER_USB_DIR}/System/adGuardHome/usr/bin/AdGuardHome
     scp -O -r adguard/etc root@${ROUTER_ADDRESS}:${ROUTER_USB_DIR}/System/adGuardHome
     ```
 
