@@ -23,6 +23,9 @@ do_startup() {
     echo "Run AdGuard Home..."
     /data/services/adguardhome.sh
 
+    echo "Wait for AdGuard Home to initialize and get its IP..."
+    sleep 10
+
     echo "Run V2ray and V2rayA..."
     /data/services/v2raya.sh
 }

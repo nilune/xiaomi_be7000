@@ -2,6 +2,26 @@
 // Uncomment entries below to satisfy your needs. Also read our manual for more detail at
 // https://www.v2fly.org/
 {
+  "policy": {
+    "levels": {
+      "0": {
+        "handshake": 4,
+        "connIdle": 60,
+        "uplinkOnly": 1,
+        "downlinkOnly": 2,
+        "statsUserUplink": false,
+        "statsUserDownlink": false,
+        "statsUserOnline": false,
+        "bufferSize": 2
+      }
+    },
+    "system": {
+      "statsInboundUplink": false,
+      "statsInboundDownlink": false,
+      "statsOutboundUplink": false,
+      "statsOutboundDownlink": false
+    }
+  },
   "log": {
     // By default, V2Ray writes access log to stdout.
     // "access": "/path/to/access/log/file",
