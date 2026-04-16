@@ -13,8 +13,8 @@ LINKS="
 /etc/v2raya:${V2RAYA_DIR}/etc/v2raya
 /etc/config/v2ray:${V2RAYA_DIR}/etc/config/v2ray
 /etc/config/v2raya:${V2RAYA_DIR}/etc/config/v2raya
-/etc/init.d/v2ray:${ADGUARD_DIR}/etc/init.d/v2ray
-/etc/init.d/v2raya:${ADGUARD_DIR}/etc/init.d/v2raya
+/etc/init.d/v2ray:${V2RAYA_DIR}/etc/init.d/v2ray
+/etc/init.d/v2raya:${V2RAYA_DIR}/etc/init.d/v2raya
 /data/usr/share/v2ray:${V2RAYA_DIR}/workdir
 /data/usr/bin/v2ray:${V2RAYA_DIR}/usr/bin/v2ray
 /data/usr/bin/v2raya:${V2RAYA_DIR}/usr/bin/v2raya
