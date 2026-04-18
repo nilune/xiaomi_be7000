@@ -127,9 +127,7 @@ scp -O "root@${ROUTER_ADDRESS}:${ROUTER_USB_DIR}/System/v2raya/etc/v2raya/*" v2r
 
 ## Задачи
 
-- [ ] Установка v2raya через `"https://github.com/v2rayA/v2rayA/releases/download/v${V2RAYA_VERSION}/v2raya_linux_arm64_${V2RAYA_VERSION}"` не работает
 - [ ] Донастроить логирование для xray, ротация
-- [ ] Донастроить конфиг v2ray, в том числе ограничения по udp
-- [ ] Возможно сделать ограничения на udp `/etc/sysctl.d/99-xray-udp.conf`: `net.netfilter.nf_conntrack_udp_timeout=15`, `net.netfilter.nf_conntrack_udp_timeout_stream=60`
-- [ ] удалить настройки для v2ray - поменять на xray и явное везде указание. Удалить лишние конфиги
 - [ ] xray статистика
+
+- [ ] Установка v2raya через `"https://github.com/v2rayA/v2rayA/releases/download/v${V2RAYA_VERSION}/v2raya_linux_arm64_${V2RAYA_VERSION}"` не работает

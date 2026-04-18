@@ -21,7 +21,7 @@ ln -sfn "${SYSTEM_DIR}/core/etc/nginx/conf.d/router.conf" "/etc/nginx/conf.d/rou
 
 # --- Function for starting all components ---
 do_startup() {
-    sleep 30
+    sleep 60
 
     echo "Run AdGuard Home..."
     /data/services/adguardhome.sh
