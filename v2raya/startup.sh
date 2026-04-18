@@ -13,6 +13,7 @@ LINKS="
 /etc/v2raya:${V2RAYA_DIR}/etc/v2raya
 /etc/config/v2raya:${V2RAYA_DIR}/etc/config/v2raya
 /etc/init.d/v2raya:${V2RAYA_DIR}/etc/init.d/v2raya
+/etc/nginx/conf.d/v2raya.conf:${V2RAYA_DIR}/etc/nginx/conf.d/v2raya.conf
 /data/usr/share/xray:${V2RAYA_DIR}/workdir
 /data/usr/bin/xray:${V2RAYA_DIR}/usr/bin/xray
 /data/usr/bin/v2raya:${V2RAYA_DIR}/usr/bin/v2raya

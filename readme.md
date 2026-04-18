@@ -139,7 +139,13 @@ export ROUTER_USB_DIR=/mnt/usb-ef8d1024
         option enabled '1'
     ```
 
-4. Далее идем в интересуемые вас директории ([adguard](adguard/readme.md) или [v2raya](v2raya/readme.md)) и настраиваете согласно описанным там readme
+4. Копируем основные системные конфиги:
+
+    ```bash
+    scp -O -r core root@${ROUTER_ADDRESS}:${ROUTER_USB_DIR}/System/
+    ```
+
+5. Далее идем в интересуемые вас директории ([adguard](adguard/readme.md) или [v2raya](v2raya/readme.md)) и настраиваете согласно описанным там readme
 
 ## Полезные
 
