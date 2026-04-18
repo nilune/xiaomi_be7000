@@ -20,7 +20,7 @@
     // "access": "/path/to/access/log/file",
 
     // By default, V2Ray write error log to stdout.
-    "error": "/data/usr/log/v2raya/v2ray.log",
+    "error": "/data/usr/log/v2raya/xray.log",
 
     // Log level, one of "debug", "info", "warning", "error", "none"
     "loglevel": "warning"

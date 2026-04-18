@@ -38,16 +38,11 @@ start_service() {
 
     procd_open_instance "$CONF"
     procd_set_param command "$PROG"
-    procd_set_param env XDG_DATA_HOME="/data/usr/share"
 
     # Add commands
-    #procd_append_param command --v2ray-bin="/data/usr/bin/v2ray"
-    procd_append_param command --v2ray-assetsdir="/data/usr/share/v2ray"
-    #procd_append_param command --config="/mnt/usb-1210d517/v2raya/config"
+    procd_append_param command --v2ray-assetsdir="/data/usr/share/xray"
 
     # Add envs
-    #procd_append_param env V2RAYA_V2RAY_BIN="/data/usr/bin/v2ray"
-
     append_env "config" "/etc/v2raya"
     append_env "log_file" "/data/usr/log/v2raya/v2raya.log"
 

@@ -42,7 +42,7 @@
 
     ```bash
     scp -O tmp/v2raya root@${ROUTER_ADDRESS}:${ROUTER_USB_DIR}/System/v2raya/usr/bin/v2raya
-    scp -O tmp/xray/xray root@${ROUTER_ADDRESS}:${ROUTER_USB_DIR}/System/v2raya/usr/bin/v2ray
+    scp -O tmp/xray/xray root@${ROUTER_ADDRESS}:${ROUTER_USB_DIR}/System/v2raya/usr/bin/xray
     scp -O -r v2raya/etc root@${ROUTER_ADDRESS}:${ROUTER_USB_DIR}/System/v2raya
     ```
 
@@ -96,7 +96,7 @@
 
 ## Обновление
 
-Для обновления - просто обновите нужные вам компоненты в директории `${ROUTER_USB_DIR}/System/v2raya`. В том числе именно таким образом следует обновлять бинари v2ray / v2raya.
+Для обновления - просто обновите нужные вам компоненты в директории `${ROUTER_USB_DIR}/System/v2raya`. В том числе именно таким образом следует обновлять бинари xray / v2raya.
 
 А для получение актуальных `etc` конфигов - взять пакеты `v2ray-core_5.30.0-r1_aarch64_generic.ipk` и `v2raya_2.2.7.3-r1_aarch64_generic.ipk` с сайта <https://archive.openwrt.org/releases/24.10.0-rc1/packages/aarch64_generic/packages/>. `ipk` переименовать в `tar.gz`. Распаковать этот архив. Достать из распакованных данных новый архив - `data.tag.gz`, его тоже распаковать и получим необходимую папку `data`. В ней подправить нужные конфиги и можно обновляться.
 
@@ -114,7 +114,7 @@
 
 ### Работа с сервисом
 
-Через команды `service v2ray help` и `service v2raya help` (и подобные команды). Логи находятся по пути `/data/usr/log/v2raya/`
+Через команды `service v2raya help` (и подобные команды). Логи находятся по пути `/data/usr/log/v2raya/`
 
 ### Бекап
 

@@ -9,14 +9,12 @@ echo "===== $(date '+%F %T') v2raya startup started ====="
 
 # --- Create soft links ---
 LINKS="
-/etc/v2ray:${V2RAYA_DIR}/etc/v2ray
+/etc/xray:${V2RAYA_DIR}/etc/xray
 /etc/v2raya:${V2RAYA_DIR}/etc/v2raya
-/etc/config/v2ray:${V2RAYA_DIR}/etc/config/v2ray
 /etc/config/v2raya:${V2RAYA_DIR}/etc/config/v2raya
-/etc/init.d/v2ray:${V2RAYA_DIR}/etc/init.d/v2ray
 /etc/init.d/v2raya:${V2RAYA_DIR}/etc/init.d/v2raya
-/data/usr/share/v2ray:${V2RAYA_DIR}/workdir
-/data/usr/bin/v2ray:${V2RAYA_DIR}/usr/bin/v2ray
+/data/usr/share/xray:${V2RAYA_DIR}/workdir
+/data/usr/bin/xray:${V2RAYA_DIR}/usr/bin/xray
 /data/usr/bin/v2raya:${V2RAYA_DIR}/usr/bin/v2raya
 /data/usr/log/v2raya:${V2RAYA_DIR}/log
 "
@@ -33,6 +31,8 @@ done
 /etc/init.d/qca-nss-ecm disable
 
 # --- Start and enable service ---
-echo "Enable and start V2rayA service..."
+echo "Enable V2rayA service..."
 /etc/init.d/v2raya enable
+
+echo "Start V2rayA service..."
 /etc/init.d/v2raya start

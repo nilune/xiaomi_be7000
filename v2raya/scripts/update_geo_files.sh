@@ -1,7 +1,7 @@
 #!/bin/sh
 
 LOG_DIR="/data/usr/log/v2raya"
-TARGET_DIR="/data/usr/share/v2ray"
+TARGET_DIR="/data/usr/share/xray"
 
 exec >> "${LOG_DIR}/update_geo.log" 2>&1
 echo "===== $(date '+%F %T') update geo files ====="
