@@ -13,7 +13,7 @@ mkdir -p "/data/usr/bin" "/data/usr/share"
 mkdir -p /etc/profile.d
 cat > /etc/profile.d/custom.sh <<EOF
 export ROUTER_USB_DIR=${USB_DIR}
-export PATH=${USB_DIR}/mi_docker/docker-binaries:${PATH}
+export PATH=${USB_DIR}/mi_docker/docker-binaries:/data/usr/bin:${PATH}
 EOF
 
 # --- Function for starting all components ---

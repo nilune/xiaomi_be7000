@@ -85,66 +85,7 @@
       1. IP форвардинг
       2. Port Sharing
    2. tproxy
-   3. RoutingA:
-
-        ```txt
-        # DOCUMENTATION: https://v2raya.org/en/docs/manual/routinga/
-        # RULES:
-        # - all: https://github.com/runetfreedom/russia-v2ray-rules-dat
-        #      - main ip & domains: https://github.com/runetfreedom/russia-blocked-geoip
-        #      - domains: https://github.com/v2fly/domain-list-community
-        # - LoyalSoldier - https://github.com/Loyalsoldier/geoip
-        # - Iran - https://github.com/Chocolate4U/Iran-v2ray-rules
-
-        # FAST
-        ## DNS
-        port(53,54) -> direct
-        sourcePort(53,54) -> direct
-        ip(77.88.8.8, 77.88.8.1, 8.8.8.8, 8.8.4.4, 1.1.1.1) -> direct
-        domain(common.dot.dns.yandex.net) -> direct
-        domain(dns.comss.one, d.adguard-dns.com, dns10.quad9.net, dns.google) -> proxy
-
-        # BLOCK TRAFFIC
-        domain(geosite: category-ads) -> block
-
-        # PRIVATE
-        #source(192.168.31.106) -> proxy
-        #source(192.168.31.58) -> proxy
-        #source(192.168.31.97) -> proxy
-        domain(help.yazio.com) -> proxy
-        domain(ziglang.org) -> proxy
-        domain(2ip.io) -> proxy
-        domain(proxifier.com) -> proxy
-        domain(kino.pub, wq9e.dzr.ovh, mos-gorsud.net, cdnservices.link) -> proxy
-
-        # SERVICE
-        ## Telegram
-        ip(geoip: telegram) -> proxy
-        ## Cloudflare
-        ip(geoip: cloudflare) -> proxy
-        domain(geosite:cloudflare) -> proxy
-        ## Samsung & AWS
-        ip(ext:"iranGeoip.dat:amazon") -> proxy
-        domain(smartthings.com, samsungiotcloud.com, samsungosp.com, samsungqbe.com, samsunghrm.com, samsungenergydr.com,  samsungepa.com, samsungcloudsolution.net, samsungcloud.com) -> proxy
-        domain(geosite: aws) -> proxy
-        domain(geosite: samsung) -> proxy
-        ## Bosch
-        domain(bsh-group.com, homeconnectegw.com, home-connect.com) -> proxy
-        ## AI
-        domain(geosite: category-ai-!cn) -> proxy
-        ## Google (for AI)
-        ip(geoip: google) -> proxy
-        domain(geosite: google) -> proxy
-
-        # COMMON
-        ip(geoip: re-filter) -> proxy
-        domain(geosite: refilter) -> proxy
-        #network(udp) -> direct
-        #network(udp)&&port(50000-65535)->proxy
-        #ip(geoip: private, geoip: ru) -> direct
-        default: direct
-        ```
-
+   3. RoutingA -> см. [файл](./routingA.txt)
    4. Выключено
    5. Выключено
    6. По-умолчанию
@@ -190,3 +131,5 @@ scp -O "root@${ROUTER_ADDRESS}:${ROUTER_USB_DIR}/System/v2raya/etc/v2raya/*" v2r
 - [ ] Донастроить логирование для v2ray
 - [ ] Донастроить конфиг v2ray, в том числе ограничения по udp
 - [ ] Возможно сделать ограничения на udp `/etc/sysctl.d/99-xray-udp.conf`: `net.netfilter.nf_conntrack_udp_timeout=15`, `net.netfilter.nf_conntrack_udp_timeout_stream=60`
+- [ ] удалить настройки для v2ray - поменять на xray и явное везде указание. Удалить лишние конфиги
+- [ ] xray статистика

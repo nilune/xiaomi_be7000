@@ -33,12 +33,6 @@ done
 /etc/init.d/qca-nss-ecm disable
 
 # --- Start and enable service ---
-echo "Enable and start V2ray (core) service..."
-/etc/init.d/v2ray start
-/etc/init.d/v2ray enable
-
-sleep 5
-
-echo "Enable and start V2rayA (gui) service..."
+echo "Enable and start V2rayA service..."
 /etc/init.d/v2raya enable
 /etc/init.d/v2raya start

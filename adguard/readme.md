@@ -61,7 +61,7 @@
     echo "Router IPv4 : ""${NET_ADDR}"
     echo "Router IPv6 : ""${NET_ADDR6}"
 
-    uci set dhcp.@dnsmasq[0].port="54"
+    uci set dhcp.@dnsmasq[0].port="0"
     uci set dhcp.@dnsmasq[0].domain="lan"
     uci set dhcp.@dnsmasq[0].local="/lan/"
     uci set dhcp.@dnsmasq[0].expandhosts="1"
@@ -94,25 +94,7 @@
 
 Все в дальнейшем настраивается через Web UI на порте **3000** (например, <http://192.168.31.1:3000>). Тут в основном рекомендации, настраивать нужно под себя.
 
-1. Во вкладке **Настройки** -> **Настройки DNS** ставим необходимые DNS сервера. Можно воспользоваться следующим примером (раскомментируйте необходимое), при этом часть DNS серверов доступно только через VPN, поэтому они ожидаемо без него не заработают (настройте доступ к ним в v2ray):
-
-    ```txt
-    [/gemini.google.com/chatgpt.com/www.comss.ru/]https://dns.google/dns-query
-    # Lovit
-    89.207.216.1
-    95.131.144.199
-    # Yandex
-    https://common.dot.dns.yandex.net/dns-query
-    # AdGuard
-    https://CHANGEME:CHANGEME@d.adguard-dns.com/dns-query
-    #https://dns.adguard-dns.com/dns-query
-    # Google
-    #https://dns.google/dns-query
-    # Comss
-    #https://dns.comss.one/dns-query
-    # Quad
-    #https://dns10.quad9.net/dns-query
-    ```
+1. Во вкладке **Настройки** -> **Настройки DNS** ставим необходимые DNS сервера. Можно воспользоваться следующим примером (раскомментируйте необходимое), при этом часть DNS серверов доступно только через VPN, поэтому они ожидаемо без него не заработают (настройте доступ к ним в v2ray) -> [файл](./dns_servers.txt)
 
 2. Там же прописать **Bootstrap DNS-серверы**:
 
@@ -125,7 +107,7 @@
     ```
 
 3. В одном из DNS выше прописан пример использования вашего личного DNS в AdGuard. Рекомендуется его создать. Все это можно сделать на сайте <https://adguard-dns.io/ru/dashboard/> после регистрации.
-4. Во вкладке **Настройки** -> **Настройки DNS** -> **Настройки DNS-сервера** обязательно добавить свой `${ROUTER_ADDRESS}` в белый список ограничений по скорости (так как из-за v2ray трафик может быть очень большой). После чего в настройках самого роутера в **Settings** -> **Network Settings** ставим **Configure DNS manually** и проставляем туда ваш `${ROUTER_ADDRESS}`.
+4. Также на этой вкладке **Настройки** -> **Настройки DNS** нужно выключить обработку IPv6.
 5. Во вкладке **Фильтры** -> **Черные списки DNS** выставляем следующие фильтры:
     - **AdGuard DNS filter**
     - **HaGeZi's Normal Blocklist**
@@ -169,76 +151,7 @@ scp -O root@${ROUTER_ADDRESS}:${ROUTER_USB_DIR}/System/adGuardHome/adguardhome.y
 
 #### Настройки dhcp
 
-Дефолтный файл сохранен в файле `/etc/config/dhcp.bak`, а также выглядит примерно следующим образом:
-
-```txt
-config dnsmasq
-        option domainneeded '1'
-        option boguspriv '1'
-        option filterwin2k '0'
-        option localise_queries '1'
-        option rebind_protection '0'
-        option rebind_localhost '1'
-        option expandhosts '1'
-        option authoritative '1'
-        option leasefile '/tmp/dhcp.leases'
-        option localservice '1'
-        option dnsforwardmax '500'
-        option resolvfile '/tmp/resolv.conf.d/resolv.conf.auto'
-        option local '/lan/'
-
-config dhcp 'lan'
-        option interface 'lan'
-        option start '5'
-        option limit '250'
-        option force '1'
-        option ra_default '1'
-        option ra 'server'
-        option ra_preference 'high'
-        option ra_maxinterval '20'
-        option ra_lifetime '1800'
-        option leasetime '720m'
-        option dhcpv6 'server'
-        list ra_flags 'managed-config'
-        list ra_flags 'other-config'
-
-config dhcp 'wan'
-        option interface 'wan'
-        option ignore '1'
-
-config dhcp 'wan_2'
-        option interface 'wan_2'
-        option ignore '1'
-
-config dhcp 'miot'
-        option interface 'miot'
-        option start '10'
-        option limit '200'
-        option leasetime '1h'
-        option force '1'
-
-config odhcpd 'odhcpd'
-        option maindhcp '0'
-        option leasefile '/tmp/hosts/odhcpd'
-        option leasetrigger '/usr/sbin/odhcpd-update'
-        option loglevel '4'
-
-config dhcp 'guest'
-        option interface 'guest'
-        option start '100'
-        option limit '150'
-        option leasetime '12h'
-        option ra_default '1'
-        option force '1'
-        option ra 'server'
-        option ra_preference 'high'
-        option ra_maxinterval '20'
-        option ra_lifetime '1800'
-        list ra_flags 'managed-config'
-        list ra_flags 'other-config'
-        option router '192.168.33.1'
-        option dns1 '192.168.33.1'
-```
+Дефолтный файл сохранен в файле `/etc/config/dhcp.bak`, а также выглядит примерно как в [файле](./dhcp.bak)
 
 ## Задачи
 
