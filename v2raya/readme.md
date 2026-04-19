@@ -11,7 +11,6 @@
 - [Дополнительно](#дополнительно)
   - [Работа с сервисом](#работа-с-сервисом)
   - [Бекап](#бекап)
-- [Задачи](#задачи)
 
 ## Установка
 
@@ -22,7 +21,7 @@
 1. Скачать пакет `xray` с <https://github.com/xtls/xray-core/releases> и `v2raya` с <https://github.com/v2rayA/v2rayA/releases>:
 
     ```bash
-    # TODO: не работает для v2raya
+    # TODO: Установка v2raya через `"https://github.com/v2rayA/v2rayA/releases/download/v${V2RAYA_VERSION}/v2raya_linux_arm64_${V2RAYA_VERSION}"` не работает
     export V2RAYA_VERSION=2.2.7.3
     wget -O tmp/v2raya "https://github.com/v2rayA/v2rayA/releases/download/v${V2RAYA_VERSION}/v2raya_linux_arm64_${V2RAYA_VERSION}"
     chmod +x tmp/v2raya
@@ -124,10 +123,3 @@
 mkdir v2raya/backup
 scp -O "root@${ROUTER_ADDRESS}:${ROUTER_USB_DIR}/System/v2raya/etc/v2raya/*" v2raya/backup
 ```
-
-## Задачи
-
-- [ ] Донастроить логирование для xray, ротация
-- [ ] xray статистика
-
-- [ ] Установка v2raya через `"https://github.com/v2rayA/v2rayA/releases/download/v${V2RAYA_VERSION}/v2raya_linux_arm64_${V2RAYA_VERSION}"` не работает

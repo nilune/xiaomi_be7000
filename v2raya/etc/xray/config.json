@@ -3,8 +3,10 @@
   "dns": {
     "queryStrategy": "UseIPv4",
     "servers": [
-      {"address": "https://1.1.1.1/dns-query", "skipFallback": false},
-      {"address": "https://8.8.8.8/dns-query", "skipFallback": false}
+      //{"address": "https://1.1.1.1/dns-query", "skipFallback": false},
+      //{"address": "https://8.8.8.8/dns-query", "skipFallback": false},
+      {"address": "https://77.88.8.8/dns-query", "skipFallback": false},
+      {"address": "https://77.88.8.1/dns-query", "skipFallback": false}
     ]
   },
   //"routing": {

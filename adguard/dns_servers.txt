@@ -1,7 +1,4 @@
 [/gemini.google.com/chatgpt.com/www.comss.ru/]https://dns.google/dns-query
-# Lovit
-#89.207.216.1
-#95.131.144.199
 # Yandex
 https://common.dot.dns.yandex.net/dns-query
 # AdGuard
