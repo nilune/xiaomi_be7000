@@ -57,6 +57,19 @@
     /data/startup.sh
     ```
 
+6. Так как трафик для xray маркируется с помощью `0x40/0xc0`, то добавляем в `/etc/config/firewall` правило для гостевой сети - это позволит трафику также маршрутизироваться через xray (если гостевой сети у вас нет - такое делать не нужно):
+
+    ```txt
+    ...
+    config rule 'guest_xray'
+        option name 'Allow Guest to Xray TPROXY'
+        option src 'guest'
+        option proto 'tcpudp'
+        option mark '0x40/0xc0'
+        option target 'ACCEPT'
+    ...
+    ```
+
 ## Настройка
 
 ### Списки geo
