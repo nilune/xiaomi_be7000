@@ -14,6 +14,11 @@
 
 Ну а также этот сервис позволяет блокировать рекламу на уровне DNS, конечно же.
 
+Ссылки:
+
+- [Github](https://github.com/AdguardTeam/AdGuardHome)
+- [Documentation](https://adguard.com/ru/adguard-home/overview.html)
+
 ## Установка
 
 Сделано на основе инструкции из [тг](https://t.me/xiaomi_be7000/12423) (от @T7m):
