@@ -14,6 +14,11 @@
 
 Ну а также этот сервис позволяет блокировать рекламу на уровне DNS, конечно же.
 
+Сам сервис после полной настройки должен быть доступен по следующим адресам:
+- <http://${ROUTER_ADDRESS}:3000>
+- <http://adguard>
+- <http://adguard.lan>
+
 Ссылки:
 
 - [Github](https://github.com/AdguardTeam/AdGuardHome)

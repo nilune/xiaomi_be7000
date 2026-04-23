@@ -12,6 +12,11 @@
 
 Сервис для проксирования запросов через прокси: UI через V2rayA и ядро на Xray.
 
+Сам сервис после полной настройки должен быть доступен по следующим адресам:
+- <http://${ROUTER_ADDRESS}:2017>
+- <http://v2raya>
+- <http://v2raya.lan>
+
 Ссылки:
 
 - [V2rayA Github](https://github.com/v2rayA/v2rayA)
