@@ -181,4 +181,4 @@ scp -O root@${ROUTER_ADDRESS}:/etc/adguardhome.yaml backup/etc/adguardhome.yaml
 
 #### Настройки dhcp
 
-Дефолтный файл сохранен в файле `/etc/config/dhcp.bak`, а также выглядит примерно как в [файле](./dhcp.bak)
+Дефолтный файл сохранен в файле `/etc/config/dhcp.bak` (если вы делали согласно этой инструкции), а также выглядит примерно как в [файле](./dhcp.bak)
