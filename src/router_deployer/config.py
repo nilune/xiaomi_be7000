@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import os
-import re
 from pathlib import Path
 from typing import Any
 
@@ -109,7 +107,6 @@ class Config:
         return issues
 
 
-# Global config instance
 _config: Config | None = None
 
 

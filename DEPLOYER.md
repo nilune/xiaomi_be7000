@@ -4,71 +4,61 @@
 
 ## Установка
 
-```bash
-# Установить uv (если нет)
-curl -LsSf https://astral.sh/uv/install.sh | sh
+1. Установи [uv](https://docs.astral.sh/uv/getting-started/installation/) согласно официальной документации.
 
-# Установить зависимости
-uv sync
+2. Установи зависимости:
+   ```bash
+   uv sync
+   ```
 
-# Активировать окружение
-source .venv/bin/activate
-```
-
-## Настройка
-
-1. Скопируй `.env.example` в `.env` и укажи пароль:
+3. Скопируй `.env.example` в `.env` и укажи пароль:
    ```bash
    cp .env.example .env
    # Отредактируй .env, укажи ROUTER_SSH_PASSWORD
    ```
 
-2. Проверь `inventory/config.yml` - там должен быть правильный IP роутера.
+4. Скопируй `inventory/hosts.yml.example` в `hosts.yml` и заполни свои устройства:
+   ```bash
+   cp inventory/hosts.yml.example inventory/hosts.yml
+   ```
+
+## Запуск
+
+Все команды запускаются через `uv run`:
+
+```bash
+uv run router --help
+```
 
 ## Команды
 
 ```bash
 # Показать конфигурацию
-router config show
+uv run router config show
 
 # Проверить соединение
-router config validate
+uv run router config validate
 
 # DHCP leases (текущие аренды)
-router dhcp leases
+uv run router dhcp leases
 
 # Статические IP: предпросмотр изменений
-router dhcp static --preview
+uv run router dhcp static --preview
 
 # Статические IP: применить изменения
-router dhcp static --apply
-
-# Статические IP: показать сгенерированный конфиг
-router dhcp static --generate
+uv run router dhcp static --apply
 
 # Скачать все конфиги с роутера
-router sync pull --all
-
-# Скачать конфиг конкретного сервиса
-router sync pull adguard
-
-# Отправить конфиг на роутер
-router sync push adguard
+uv run router sync pull --all
 
 # Deploy: предпросмотр
-router deploy run --dry-run
-
-# Deploy: выполнить
-router deploy run
+uv run router deploy run --dry-run
 
 # AdGuard: показать клиентов из hosts.yml
-router adguard clients
-
-# AdGuard: добавить клиентов в конфиг
-router adguard clients --apply
+uv run router adguard clients
 
 # Выполнить команду на роутере
-router utils exec "uptime"
+uv run router utils exec "uptime"
 ```
 
 ## Структура
@@ -82,7 +72,7 @@ router utils exec "uptime"
 │   └── uci/                # UCI обработчики
 ├── inventory/
 │   ├── config.yml          # Настройки роутера
-│   └── hosts.yml           # Статические IP
+│   └── hosts.yml           # Статические IP (в .gitignore)
 ├── backups/                # Скачанные конфиги
 ├── adguard/                # Файлы AdGuard Home
 ├── v2raya/                 # Файлы V2rayA
@@ -101,13 +91,13 @@ hosts:
     description: "My Device"
 ```
 
-При применении (`router dhcp static --apply`):
+При применении (`uv run router dhcp static --apply`):
 - Используются UCI команды - не перезаписывает весь конфиг
 - Добавляет `option name` для каждого хоста
 - Требуется `service dnsmasq restart` на роутере
 
 ## Безопасность
 
-- `.env` файл добавлен в `.gitignore`
-- Пароль можно передать через переменную окружения или `.env`
+- `.env` и `hosts.yml` добавлены в `.gitignore`
+- Пароль через переменную окружения или `.env`
 - DHCP изменения через UCI - безопасно
