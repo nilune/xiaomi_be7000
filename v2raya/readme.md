@@ -145,6 +145,6 @@
 Можно забекапить путем сохранения файлов - `${ROUTER_USB_DIR}/System/v2raya/etc/v2raya`. Скопировать себе на систему можно следующим образом:
 
 ```bash
-mkdir v2raya/backup
-scp -O "root@${ROUTER_ADDRESS}:${ROUTER_USB_DIR}/System/v2raya/etc/v2raya/*" v2raya/backup
+mkdir -p backup
+scp -O -r root@${ROUTER_ADDRESS}:/etc/v2raya backup
 ```

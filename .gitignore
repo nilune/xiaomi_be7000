@@ -9,4 +9,4 @@ tmp/**
 !tmp/.gitkeep
 
 # Backups
-**/backup
+backup/**
