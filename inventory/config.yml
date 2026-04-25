@@ -1,0 +1,32 @@
+# Router Configuration
+# Основные настройки роутера
+
+router:
+  address: 192.168.31.1         # IP адрес роутера
+  user: root                       # SSH пользователь
+  usb_dir: /mnt/usb-ef8d1024      # Точка монтирования USB
+
+paths:
+  system_dir: ${router.usb_dir}/System
+  services_dir: /data/services
+  log_dir: /data/usr/log
+
+services:
+  core:
+    enabled: true
+    description: "Системные настройки (nginx, env vars)"
+
+  adguard:
+    enabled: true
+    port: 3000
+    description: "AdGuard Home DNS сервер"
+
+  v2raya:
+    enabled: true
+    port: 2017
+    description: "V2rayA прокси с Xray"
+
+  filebrowser:
+    enabled: false
+    port: 8088
+    description: "Файловый менеджер (Docker)"

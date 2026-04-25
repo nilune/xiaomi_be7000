@@ -1,0 +1,14 @@
+# Static Hosts Configuration (Example)
+# Copy this file to hosts.yml and fill in your devices
+#
+# Поля:
+#   - mac: MAC адрес устройства
+#   - ip: статический IP адрес
+#   - description: описание устройства (опционально)
+
+hosts:
+  # Пример устройства
+  # my_device:
+  #   mac: "aa:bb:cc:dd:ee:ff"
+  #   ip: 192.168.31.100
+  #   description: "My Device"
