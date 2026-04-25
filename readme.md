@@ -13,11 +13,12 @@ export ROUTER_USB_DIR=/mnt/usb-ef8d1024
 
 - [Установка (база)](#установка-база)
 - [Установка (работа с сервисами)](#установка-работа-с-сервисами)
-- [Полезные](#полезные)
+- [Полезное](#полезное)
   - [Бекап и как его делать](#бекап-и-как-его-делать)
   - [Выключение ненужных wifi сетей](#выключение-ненужных-wifi-сетей)
   - [Донастройка IoT сети](#донастройка-iot-сети)
-  - [Важные файлы и полезные команды](#важные-файлы-и-полезные-команды)
+  - [Настройка статических адресов](#настройка-статических-адресов)
+- [Важные файлы и полезные команды](#важные-файлы-и-полезные-команды)
 - [Задачи](#задачи)
 
 ## Установка (база)
@@ -147,7 +148,7 @@ export ROUTER_USB_DIR=/mnt/usb-ef8d1024
    3. [v2raya](v2raya/readme.md) - настройка прокси через V2rayA и Xray
    4. [filebrowser](filebrowser/readme.md) - настройка доступа к данным через браузер
 
-## Полезные
+## Полезное
 
 ### Бекап и как его делать
 
@@ -222,6 +223,7 @@ export ROUTER_USB_DIR=/mnt/usb-ef8d1024
 
     ```txt
     config dhcp 'miot'
+        option leasetime '12h'
         option ra_default '1'
         option ra 'server'
         option ra_preference 'high'
@@ -240,9 +242,28 @@ export ROUTER_USB_DIR=/mnt/usb-ef8d1024
         option bridge_empty '1'
     ```
 
-Далее можем прописать необходимые статические IP адреса в файле `/etc/config/dhcp` на основе файла `/tmp/dhcp.leases`.
+TODO: доступ через firewall с определенных адресов к samba на роутере или в целом ко всему
 
-### Важные файлы и полезные команды
+### Настройка статических адресов
+
+TODO: how?
+Статические IP адреса прописываются в файле `/etc/config/dhcp` на основе файла `/tmp/dhcp.leases`:
+
+```bash
+# Настраиваем настройки в файле /etc/config/dhcp.add
+# Пример:
+#
+# config host 'heated_towel_rail'
+#    option mac 'd8:c8:0c:f4:56:bf'
+#    option ip '192.168.32.115'
+#    option name 'heated_towel_rail'
+
+# FIXME: это просто не работает, импорт все перетирает! опасная операция!!!
+scp -O backup/etc/config/dhcp.add root@${ROUTER_ADDRESS}:${ROUTER_USB_DIR}/System/dhcp.add
+ssh root@${ROUTER_ADDRESS} "uci import dhcp < ${ROUTER_USB_DIR}/System/dhcp.add && uci commit dhcp"
+```
+
+## Важные файлы и полезные команды
 
 1. `/etc/config/network` - все сети на роутере (в том числе `docker`, `lan`, `guest`)
 2. `/etc/config/wireless` - wifi сети и их настройка
@@ -258,7 +279,7 @@ export ROUTER_USB_DIR=/mnt/usb-ef8d1024
 ## Задачи
 
 - [ ] Пофиксить права доступа на внешней флешке, чтобы можно подключаться через smb
-- [ ] работа с диском
+- [ ] Работа с диском
 - [ ] https://post.smzdm.com/p/akk9nvv8/ - home assistant и прочее
 - [ ] подготовить готовые скрипты создания бекапа и восстановления из него
 - [ ] улучшить все конфиги с помощью ИИ агента, сделать автоматизацию раскатки
