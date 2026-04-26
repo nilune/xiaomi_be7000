@@ -1,0 +1,132 @@
+# Router Configuration
+# Единый файл конфигурации для всех сервисов
+
+router:
+  address: 192.168.31.1
+  user: root
+  usb_dir: /mnt/usb-ef8d1024
+
+services:
+  core:
+    enabled: true
+
+  adguard:
+    enabled: true
+    log_level: info          # debug, info, warn, error
+
+  v2raya:
+    enabled: true
+    xray_log_level: warning  # debug, info, warning, error, none
+
+  filebrowser:
+    enabled: false
+    port: 8088
+    sources:
+      - path: /mnt/usb-ef8d1024
+        name: USB Drive
+      - path: /etc/config
+        name: Router Config
+      - path: /data
+        name: Router Data
+
+# Статические IP адреса для устройств
+hosts:
+  # === Климат ===
+  air_conditioner_bedroom:
+    mac: "30:c9:22:05:48:94"
+    ip: 192.168.32.106
+    name: "Air Conditioner Bedroom"
+
+  air_conditioner_living_room:
+    mac: "d0:ef:76:3b:16:00"
+    ip: 192.168.32.192
+    name: "Air Conditioner Living Room"
+
+  air_breather_bedroom:
+    mac: "c6:d8:d5:94:3d:8c"
+    ip: 192.168.32.130
+    name: "Air Breather Bedroom"
+
+  air_breather_living_room:
+    mac: "c6:d8:d5:91:2d:60"
+    ip: 192.168.32.187
+    name: "Air Breather Living Room"
+
+  air_breather_office:
+    mac: "0a:a6:f7:03:6c:90"
+    ip: 192.168.32.54
+    name: "Air Breather Office"
+
+  floor_heating_controller_bathroom:
+    mac: "fc:3c:d7:f6:ba:a4"
+    ip: 192.168.32.163
+    name: "Floor Heating Bathroom"
+
+  floor_heating_controller_hallway:
+    mac: "fc:3c:d7:f6:c4:f1"
+    ip: 192.168.32.30
+    name: "Floor Heating Hallway"
+
+  heated_towel_rail:
+    mac: "d8:c8:0c:f4:56:bf"
+    ip: 192.168.32.115
+    name: "Heated Towel Rail"
+
+  # === Кухня ===
+  bosch_dish_washer:
+    mac: "48:26:4c:50:13:2a"
+    ip: 192.168.32.91
+    name: "Bosch DishWasher"
+
+  samsung_clothes_washer:
+    mac: "34:fc:99:1c:0d:76"
+    ip: 192.168.32.38
+    name: "Samsung Washer"
+
+  samsung_refrigerator:
+    mac: "34:fc:99:12:8d:15"
+    ip: 192.168.32.164
+    name: "Samsung Refrigerator"
+
+  # === Освещение ===
+  led_strip_bathtub:
+    mac: "4c:a9:19:2a:fa:6a"
+    ip: 192.168.32.72
+    name: "LED Strip Bathtub"
+
+  led_strip_countertop:
+    mac: "4c:a9:19:2a:f2:61"
+    ip: 192.168.32.71
+    name: "LED Strip Countertop"
+
+  led_strip_curtain_bedroom:
+    mac: "3c:0b:59:95:31:1b"
+    ip: 192.168.32.79
+    name: "LED Strip Curtain Bedroom"
+
+  led_strip_curtain_living_room:
+    mac: "3c:0b:59:9f:0f:94"
+    ip: 192.168.32.84
+    name: "LED Strip Curtain Living Room"
+
+  led_strip_curtain_office:
+    mac: "3c:0b:59:9f:0c:bb"
+    ip: 192.168.32.126
+    name: "LED Strip Curtain Office"
+
+  led_strip_shower:
+    mac: "4c:a9:19:2a:f7:4e"
+    ip: 192.168.32.47
+    name: "LED Strip Shower"
+
+  # === Медиа ===
+  yandex_station_mini_3_pro:
+    mac: "3c:0b:4f:9b:9f:c8"
+    ip: 192.168.32.174
+    name: "Yandex Station Mini 3 Pro"
+
+  # === Датчики ===
+  neptun_smart:
+    mac: "4c:a9:19:0c:ef:cc"
+    ip: 192.168.32.127
+    name: "Neptun Smart Water Leak"

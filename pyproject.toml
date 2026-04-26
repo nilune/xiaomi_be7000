@@ -11,6 +11,11 @@ dependencies = [
     "python-dotenv>=1.0.0",
 ]
 
+[project.optional-dependencies]
+dev = [
+    "ruff>=0.4.0",
+]
+
 [project.scripts]
 router = "router_deployer.cli:main"
 

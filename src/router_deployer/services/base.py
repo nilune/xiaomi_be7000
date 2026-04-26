@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Any
 
 from rich.console import Console
 
@@ -59,13 +58,13 @@ class ServiceDeployer(ABC):
         console.print(f"  [blue]Remote path:[/blue] {self.remote_system_dir}")
 
         if self.local_service_dir.exists():
-            console.print(f"  [blue]Files to upload:[/blue]")
+            console.print("  [blue]Files to upload:[/blue]")
             for f in self.local_service_dir.rglob("*"):
                 if f.is_file():
                     rel_path = f.relative_to(self.local_service_dir)
                     console.print(f"    - {rel_path}")
         else:
-            console.print(f"  [yellow]Service directory not found[/yellow]")
+            console.print("  [yellow]Service directory not found[/yellow]")
 
         return True
 

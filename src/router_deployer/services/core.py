@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from ..config import Config
-from ..connection import SSHConnection
 from .base import ServiceDeployer
 
 
@@ -23,7 +21,6 @@ class CoreDeployer(ServiceDeployer):
 
     def _pull_config(self) -> bool:
         """Pull nginx configs from router."""
-        import subprocess
 
         self.local_backup_dir.mkdir(parents=True, exist_ok=True)
 

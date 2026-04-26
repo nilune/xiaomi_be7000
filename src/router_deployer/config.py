@@ -18,39 +18,29 @@ class Config:
 
     def __init__(self, repo_root: Path | None = None):
         self.repo_root = repo_root or self._find_repo_root()
-        self._inventory_dir = self.repo_root / "inventory"
+        self._config_path = self.repo_root / "config.yml"
         self._backups_dir = self.repo_root / "backups"
         self._config: dict[str, Any] = {}
-        self._hosts: dict[str, Any] = {}
-        self._dns_records: dict[str, Any] = {}
         self._loaded = False
 
     @staticmethod
     def _find_repo_root() -> Path:
-        """Find repository root by looking for CLAUDE.md or pyproject.toml."""
+        """Find repository root by looking for config.yml or pyproject.toml."""
         current = Path.cwd()
         for parent in [current] + list(current.parents):
-            if (parent / "CLAUDE.md").exists() or (parent / "pyproject.toml").exists():
+            if (parent / "config.yml").exists() or (parent / "pyproject.toml").exists():
                 return parent
         return current
 
     def load(self) -> None:
         """Load all configuration files."""
-        self._config = self._load_yaml("config.yml", required=True)
-        self._hosts = self._load_yaml("hosts.yml", required=False) or {}
-        self._dns_records = self._load_yaml("dns_records.yml", required=False) or {}
+        if self._config_path.exists():
+            with open(self._config_path, encoding="utf-8") as f:
+                self._config = yaml.safe_load(f) or {}
+        else:
+            raise ConfigError(f"Config file not found: {self._config_path}")
+
         self._loaded = True
-
-    def _load_yaml(self, filename: str, required: bool = True) -> dict[str, Any] | None:
-        """Load a YAML file from inventory directory."""
-        path = self._inventory_dir / filename
-        if not path.exists():
-            if required:
-                raise ConfigError(f"Required config file not found: {path}")
-            return None
-
-        with open(path, "r", encoding="utf-8") as f:
-            return yaml.safe_load(f) or {}
 
     @property
     def router_address(self) -> str:
@@ -80,29 +70,23 @@ class Config:
     @property
     def hosts(self) -> dict[str, Any]:
         """Static hosts configuration."""
-        return self._hosts
-
-    @property
-    def dns_records(self) -> dict[str, Any]:
-        """DNS records configuration."""
-        return self._dns_records
+        return {"hosts": self._config.get("hosts", {})}
 
     @property
     def backups_dir(self) -> Path:
         """Local backups directory."""
         return self._backups_dir
 
-    @property
-    def inventory_dir(self) -> Path:
-        """Local inventory directory."""
-        return self._inventory_dir
+    def get_service_config(self, service_name: str) -> dict[str, Any]:
+        """Get service-specific configuration from config.yml."""
+        return self._config.get("services", {}).get(service_name, {})
 
     def validate(self) -> list[str]:
         """Validate configuration. Returns list of issues."""
         issues = []
 
         if not self.router_address:
-            issues.append("Router address not configured in inventory/config.yml")
+            issues.append("Router address not configured in config.yml")
 
         return issues
 

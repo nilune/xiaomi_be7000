@@ -2,10 +2,6 @@
 
 from __future__ import annotations
 
-from pathlib import Path
-
-from ..config import Config
-from ..connection import SSHConnection
 from .base import ServiceDeployer
 
 

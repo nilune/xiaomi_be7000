@@ -2,10 +2,6 @@
 
 from __future__ import annotations
 
-from pathlib import Path
-
-from ..config import Config
-from ..connection import SSHConnection
 from .base import ServiceDeployer
 
 
@@ -66,8 +62,9 @@ class AdGuardDeployer(ServiceDeployer):
 
     def update_clients_from_inventory(self) -> bool:
         """Update AdGuard clients from inventory/hosts.yml."""
-        from ..uci.dhcp import DHCPHandler
         import yaml
+
+        from ..uci.dhcp import DHCPHandler
 
         handler = DHCPHandler(self.config)
         clients = handler.generate_adguard_clients()
@@ -78,7 +75,7 @@ class AdGuardDeployer(ServiceDeployer):
         if not local_config.exists():
             return False
 
-        with open(local_config, "r") as f:
+        with open(local_config) as f:
             config = yaml.safe_load(f)
 
         config["clients"] = clients

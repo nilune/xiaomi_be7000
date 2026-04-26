@@ -130,8 +130,8 @@ def get_uci_handler(config: Config, name: str) -> UCIConfigHandler:
     """Get UCI handler by name."""
     from .dhcp import DHCPHandler
     from .firewall import FirewallHandler
-    from .wireless import WirelessHandler
     from .network import NetworkHandler
+    from .wireless import WirelessHandler
 
     handlers = {
         "dhcp": DHCPHandler,

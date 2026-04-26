@@ -4,27 +4,14 @@
 
 ## Установка
 
-1. Установи [uv](https://docs.astral.sh/uv/getting-started/installation/) согласно официальной документации.
-
-2. Установи зависимости:
-   ```bash
-   uv sync
-   ```
-
-3. Скопируй `.env.example` в `.env` и укажи пароль:
-   ```bash
-   cp .env.example .env
-   # Отредактируй .env, укажи ROUTER_SSH_PASSWORD
-   ```
-
-4. Скопируй `inventory/hosts.yml.example` в `hosts.yml` и заполни свои устройства:
-   ```bash
-   cp inventory/hosts.yml.example inventory/hosts.yml
-   ```
+```bash
+uv sync                                    # Установи зависимости
+cp .env.example .env                       # Укажи ROUTER_SSH_PASSWORD
+cp config.yml.example config.yml           # Скопируй пример конфигурации
+# Отредактируй config.yml - заполни свои устройства и настройки
+```
 
 ## Запуск
-
-Все команды запускаются через `uv run`:
 
 ```bash
 uv run router --help
@@ -32,72 +19,80 @@ uv run router --help
 
 ## Команды
 
+### Конфигурация
+
 ```bash
-# Показать конфигурацию
-uv run router config show
-
-# Проверить соединение
-uv run router config validate
-
-# DHCP leases (текущие аренды)
-uv run router dhcp leases
-
-# Статические IP: предпросмотр изменений
-uv run router dhcp static --preview
-
-# Статические IP: применить изменения
-uv run router dhcp static --apply
-
-# Скачать все конфиги с роутера
-uv run router sync pull --all
-
-# Deploy: предпросмотр
-uv run router deploy run --dry-run
-
-# AdGuard: показать клиентов из hosts.yml
-uv run router adguard clients
-
-# Выполнить команду на роутере
-uv run router utils exec "uptime"
+uv run router config show      # Показать конфигурацию
+uv run router config validate  # Проверить соединение
 ```
 
-## Структура
+### DHCP + AdGuard
 
-```
-├── src/router_deployer/    # Python пакет
-│   ├── cli.py              # CLI команды
-│   ├── config.py           # Загрузка конфигурации
-│   ├── connection.py       # SSH соединение
-│   ├── services/           # Деплоеры сервисов
-│   └── uci/                # UCI обработчики
-├── inventory/
-│   ├── config.yml          # Настройки роутера
-│   └── hosts.yml           # Статические IP (в .gitignore)
-├── backups/                # Скачанные конфиги
-├── adguard/                # Файлы AdGuard Home
-├── v2raya/                 # Файлы V2rayA
-└── core/                   # Системные файлы (nginx)
+```bash
+uv run router dhcp leases              # Текущие аренды IP
+uv run router dhcp static              # Предпросмотр изменений
+uv run router dhcp static --apply      # Применить DHCP изменения
+uv run router dhcp static --apply --adguard --restart  # Полное обновление
 ```
 
-## hosts.yml
+### AdGuard
 
-Центральный источник правды для статических IP:
+```bash
+uv run router adguard clients          # Показать клиентов
+uv run router adguard clients --apply  # Обновить клиентов
+```
+
+### Синхронизация
+
+```bash
+uv run router sync pull --all          # Скачать все конфиги
+uv run router sync pull adguard        # Скачать конкретный конфиг
+uv run router sync push dhcp --force   # Отправить конфиг
+```
+
+### Deploy
+
+```bash
+uv run router deploy run --dry-run     # Предпросмотр
+uv run router deploy run adguard       # Деплой сервиса
+```
+
+## Конфигурация
+
+### config.yml
 
 ```yaml
-hosts:
-  my_device:
-    mac: "aa:bb:cc:dd:ee:ff"
-    ip: 192.168.31.100
-    description: "My Device"
-```
+router:
+  address: 192.168.31.1
+  user: root
+  usb_dir: /mnt/usb-ef8d1024
 
-При применении (`uv run router dhcp static --apply`):
-- Используются UCI команды - не перезаписывает весь конфиг
-- Добавляет `option name` для каждого хоста
-- Требуется `service dnsmasq restart` на роутере
+services:
+  adguard:
+    enabled: true
+    log_level: info
+
+  v2raya:
+    enabled: true
+    xray_log_level: warning
+
+  filebrowser:
+    enabled: false
+    port: 8088
+    sources:
+      - path: /mnt/usb-ef8d1024
+        name: USB Drive
+      - path: /etc/config
+        name: Router Config
+
+hosts:
+  air_conditioner_bedroom:
+    mac: "30:c9:22:05:48:94"
+    ip: 192.168.32.106
+    name: "Air Conditioner Bedroom"
+```
 
 ## Безопасность
 
-- `.env` и `hosts.yml` добавлены в `.gitignore`
-- Пароль через переменную окружения или `.env`
-- DHCP изменения через UCI - безопасно
+- `.env` и `config.yml` в `.gitignore`
+- UCI push требует `--force` для применения

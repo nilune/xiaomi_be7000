@@ -2,13 +2,11 @@
 
 from __future__ import annotations
 
-from typing import Optional
-
 import click
 from rich.console import Console
 from rich.table import Table
 
-from .config import Config, get_config, reload_config
+from .config import Config, get_config
 from .connection import SSHConnection
 
 console = Console()
@@ -77,6 +75,10 @@ def show_config(ctx: click.Context) -> None:
 
     console.print(table)
 
+    # Show hosts count
+    hosts = config.hosts.get("hosts", {})
+    console.print(f"\n[blue]Static Hosts:[/blue] {len(hosts)} configured")
+
     console.print("\n[blue]Enabled Services[/blue]")
     for name, cfg in config.services.items():
         if cfg.get("enabled"):
@@ -98,7 +100,8 @@ def validate_config(ctx: click.Context) -> None:
 
     console.print("[green]Configuration is valid[/green]")
 
-    conn = require_connection(config)
+    # Test connection
+    require_connection(config)
     console.print(f"[green]Connected to router at {config.router_address}[/green]")
 
 
@@ -145,15 +148,20 @@ def leases_cmd(ctx: click.Context) -> None:
 @click.option("--preview", is_flag=True, help="Preview changes")
 @click.option("--apply", "apply_changes", is_flag=True, help="Apply changes to router")
 @click.option("--generate", is_flag=True, help="Generate config from hosts.yml")
+@click.option("--remove-orphans", is_flag=True, help="Remove hosts not in inventory")
+@click.option("--restart", is_flag=True, help="Restart dnsmasq after changes")
+@click.option("--adguard", is_flag=True, help="Also update AdGuard clients")
 @click.pass_context
-def static_cmd(ctx: click.Context, preview: bool, apply_changes: bool, generate: bool) -> None:
-    """Manage static DHCP entries.
-
-    Examples:
-        router dhcp static --preview    # Show what would change
-        router dhcp static --apply      # Apply changes to router
-        router dhcp static --generate   # Show generated entries
-    """
+def static_cmd(
+    ctx: click.Context,
+    preview: bool,
+    apply_changes: bool,
+    generate: bool,
+    remove_orphans: bool,
+    restart: bool,
+    adguard: bool,
+) -> None:
+    """Manage static DHCP entries and optionally AdGuard clients."""
     config = require_config()
     from .uci.dhcp import DHCPHandler
 
@@ -181,26 +189,61 @@ def static_cmd(ctx: click.Context, preview: bool, apply_changes: bool, generate:
                 console.print(f"      old: {h['old'].get('mac')} -> {h['old'].get('ip')}")
                 console.print(f"      new: {h['new'].get('mac')} -> {h['new'].get('ip')}")
 
-        if changes["unchanged"]:
-            console.print(f"[dim]Unchanged ({len(changes['unchanged'])}): {', '.join(changes['unchanged'])}[/dim]")
+        if changes["to_remove"]:
+            color = "red" if remove_orphans else "dim"
+            action = "Will REMOVE" if remove_orphans else "Orphans (use --remove-orphans)"
+            console.print(f"[{color}]{action} ({len(changes['to_remove'])}):[/{color}]")
+            for h in changes["to_remove"]:
+                console.print(f"  - {h['name']}: {h['mac']} -> {h['ip']}")
 
-        if not changes["to_add"] and not changes["to_update"]:
-            console.print("[green]No changes needed - inventory matches router[/green]")
+        if changes["unchanged"]:
+            unchanged = ", ".join(changes["unchanged"])
+            console.print(f"[dim]Unchanged ({len(changes['unchanged'])}): {unchanged}[/dim]")
+
+        has_changes = (
+            changes["to_add"] or
+            changes["to_update"] or
+            (changes["to_remove"] and remove_orphans)
+        )
+        if not has_changes and not adguard:
+            console.print("[green]No changes needed[/green]")
             return
 
         if apply_changes:
-            console.print("\n[yellow]Applying changes...[/yellow]")
-            result = handler.apply_changes(conn, dry_run=False)
+            console.print("\n[yellow]Applying DHCP changes...[/yellow]")
+            result = handler.apply_changes(
+                conn,
+                dry_run=False,
+                remove_orphans=remove_orphans,
+                restart_dnsmasq=restart,
+            )
 
             if result.get("added"):
                 console.print(f"[green]✓ Added: {', '.join(result['added'])}[/green]")
             if result.get("updated"):
                 console.print(f"[green]✓ Updated: {', '.join(result['updated'])}[/green]")
+            if result.get("removed"):
+                console.print(f"[green]✓ Removed: {', '.join(result['removed'])}[/green]")
             if result.get("failed"):
                 console.print(f"[red]✗ Failed: {result['failed']}[/red]")
 
-            console.print("\n[yellow]Run 'service dnsmasq restart' on router for changes to take effect.[/yellow]")
-        else:
+            if restart:
+                console.print("\n[green]✓ dnsmasq restarted[/green]")
+            else:
+                msg = "Run 'service dnsmasq restart' on router for changes to take effect."
+                console.print(f"\n[yellow]{msg}[/yellow]")
+
+        # Update AdGuard clients if requested
+        if adguard:
+            console.print("\n[yellow]Updating AdGuard clients...[/yellow]")
+            from .services.adguard import AdGuardDeployer
+            deployer = AdGuardDeployer(config, conn)
+            if deployer.update_clients_from_inventory():
+                console.print("[green]✓ AdGuard clients updated[/green]")
+            else:
+                console.print("[red]✗ Failed to update AdGuard clients[/red]")
+
+        if not apply_changes and not adguard:
             console.print("\n[dim]Run with --apply to make these changes[/dim]")
 
     elif generate:
@@ -223,7 +266,7 @@ def sync() -> None:
 @click.argument("service", required=False)
 @click.option("--all", "pull_all", is_flag=True, help="Pull all configs")
 @click.pass_context
-def pull_cmd(ctx: click.Context, service: Optional[str], pull_all: bool) -> None:
+def pull_cmd(ctx: click.Context, service: str | None, pull_all: bool) -> None:
     """Pull configuration from router to local backup."""
     config = require_config()
     conn = require_connection(config)
@@ -242,13 +285,13 @@ def pull_cmd(ctx: click.Context, service: Optional[str], pull_all: bool) -> None
         from .services.adguard import AdGuardDeployer
         deployer = AdGuardDeployer(config, conn)
         if deployer.pull():
-            console.print(f"  [green]✓[/green] adguardhome.yaml")
+            console.print("  [green]✓[/green] adguardhome.yaml")
 
         # Pull V2rayA
         from .services.v2raya import V2rayADeployer
         deployer = V2rayADeployer(config, conn)
         if deployer.pull():
-            console.print(f"  [green]✓[/green] v2raya config")
+            console.print("  [green]✓[/green] v2raya config")
 
     else:
         console.print(f"[blue]Pulling {service} configuration...[/blue]")
@@ -270,33 +313,91 @@ def pull_cmd(ctx: click.Context, service: Optional[str], pull_all: bool) -> None
 @sync.command("push")
 @click.argument("service", required=False)
 @click.option("--dry-run", is_flag=True, help="Show what would be done")
+@click.option("--force", is_flag=True, help="Skip preview confirmation")
 @click.pass_context
-def push_cmd(ctx: click.Context, service: Optional[str], dry_run: bool) -> None:
-    """Push local configuration to router."""
+def push_cmd(ctx: click.Context, service: str | None, dry_run: bool, force: bool) -> None:
+    """Push local configuration to router.
+
+    For UCI configs (dhcp, firewall, wireless, network), shows a diff
+    before pushing unless --force is used.
+    """
     config = require_config()
 
     if not service:
-        console.print("[red]Specify a service: adguard, v2raya, or uci config name[/red]")
+        msg = "Specify a service: adguard, v2raya, dhcp, firewall, wireless, network"
+        console.print(f"[red]{msg}[/red]")
         return
 
     conn = require_connection(config)
 
-    if dry_run:
-        console.print(f"[yellow]Would push {service} config to router[/yellow]")
-        return
-
-    console.print(f"[blue]Pushing {service} configuration...[/blue]")
-
     if service == "adguard":
+        if dry_run:
+            console.print("[yellow]Would push AdGuard config and restart service[/yellow]")
+            return
+        console.print("[blue]Pushing AdGuard configuration...[/blue]")
         from .services.adguard import AdGuardDeployer
         deployer = AdGuardDeployer(config, conn)
         if deployer.push():
             console.print("[green]✓ Pushed and restarted AdGuard Home[/green]")
+
     elif service == "v2raya":
+        if dry_run:
+            console.print("[yellow]Would push V2rayA config[/yellow]")
+            return
+        console.print("[blue]Pushing V2rayA configuration...[/blue]")
         from .services.v2raya import V2rayADeployer
         deployer = V2rayADeployer(config, conn)
         if deployer.push():
             console.print("[green]✓ Pushed V2rayA config[/green]")
+
+    elif service in ("dhcp", "firewall", "wireless", "network"):
+        # Push UCI config with preview
+        local_config = config.backups_dir / "router" / service
+        if not local_config.exists():
+            console.print(f"[red]No local backup found. Run 'sync pull {service}' first.[/red]")
+            return
+
+        local_content = local_config.read_text()
+        remote_path = f"/etc/config/{service}"
+
+        if dry_run:
+            console.print(f"[yellow]Would push /etc/config/{service}[/yellow]")
+            console.print(f"[dim]Local file size: {len(local_content)} bytes[/dim]")
+            return
+
+        # Show preview if not forced
+        if not force:
+            console.print(f"[blue]Preview for /etc/config/{service}:[/blue]")
+            console.print(f"  Local file: {len(local_content)} bytes")
+
+            # Get current remote content
+            try:
+                remote_content = conn.read_file(remote_path)
+                console.print(f"  Remote file: {len(remote_content)} bytes")
+
+                # Simple diff summary
+                local_lines = local_content.strip().split("\n")
+                remote_lines = remote_content.strip().split("\n")
+
+                if local_content == remote_content:
+                    console.print("[green]  Files are identical - no changes needed[/green]")
+                    return
+
+                msg = f"Local: {len(local_lines)} lines, Remote: {len(remote_lines)} lines"
+                console.print(f"  [yellow]{msg}[/yellow]")
+
+            except Exception:
+                console.print("  [dim]Remote file not accessible[/dim]")
+
+            console.print("\n[yellow]Run with --force to apply changes[/yellow]")
+            return
+
+        # Apply changes
+        console.print(f"[blue]Pushing /etc/config/{service}...[/blue]")
+        conn.write_file(remote_path, local_content, backup=True)
+        console.print(f"[green]✓ Pushed /etc/config/{service}[/green]")
+        console.print("[yellow]Restart services manually if needed[/yellow]")
+
     else:
         console.print(f"[red]Unknown service: {service}[/red]")
 
@@ -315,7 +416,7 @@ def deploy() -> None:
 @click.argument("service", required=False)
 @click.option("--dry-run", is_flag=True, help="Show what would be done")
 @click.pass_context
-def deploy_run(ctx: click.Context, service: Optional[str], dry_run: bool) -> None:
+def deploy_run(ctx: click.Context, service: str | None, dry_run: bool) -> None:
     """Deploy service(s) to router."""
     config = require_config()
 
@@ -348,6 +449,9 @@ def deploy_run(ctx: click.Context, service: Optional[str], dry_run: bool) -> Non
             elif svc == "core":
                 from .services.core import CoreDeployer
                 deployer = CoreDeployer(config, conn)
+            elif svc == "filebrowser":
+                from .services.filebrowser import FilebrowserDeployer
+                deployer = FilebrowserDeployer(config, conn)
             else:
                 console.print(f"[red]Unknown service: {svc}[/red]")
                 continue
@@ -421,15 +525,30 @@ def utils() -> None:
 
 @utils.command("exec")
 @click.argument("command", required=True)
+@click.option("--show-stderr", is_flag=True, help="Show stderr output")
 @click.pass_context
-def exec_cmd(ctx: click.Context, command: str) -> None:
-    """Execute command on router."""
+def exec_cmd(ctx: click.Context, command: str, show_stderr: bool) -> None:
+    """Execute command on router.
+
+    Example:
+        router utils exec "uptime"
+        router utils exec "logread | tail -20" --show-stderr
+    """
     config = require_config()
     conn = require_connection(config)
 
     console.print(f"[blue]Running: {command}[/blue]")
     result = conn.run(command, check=False)
-    console.print(result)
+    if result:
+        console.print(result)
+
+    if show_stderr:
+        # Re-run with stderr capture
+        import subprocess
+        cmd = conn._build_ssh_cmd(command, 30)
+        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+        if proc.stderr:
+            console.print(f"[dim]stderr: {proc.stderr}[/dim]")
 
 
 if __name__ == "__main__":

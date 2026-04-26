@@ -121,13 +121,13 @@ class SSHConnection:
             return result.stdout.strip()
 
         except subprocess.TimeoutExpired:
-            raise CommandError(f"Command timed out after {timeout}s: {command}")
+            raise CommandError(f"Command timed out after {timeout}s: {command}") from None
         except FileNotFoundError as e:
             if "sshpass" in str(e):
                 raise ConnectionError(
                     "sshpass not found. Install with: brew install sshpass (macOS) "
                     "or apt install sshpass (Linux)"
-                )
+                ) from None
             raise
 
     def upload(self, local_path: str | Path, remote_path: str) -> bool:
@@ -198,12 +198,14 @@ class SSHConnection:
 
     def file_exists(self, remote_path: str) -> bool:
         """Check if file exists on router."""
-        result = self.run(f"test -f {remote_path} && echo 'exists' || echo 'not_found'", check=False)
+        cmd = f"test -f {remote_path} && echo 'exists' || echo 'not_found'"
+        result = self.run(cmd, check=False)
         return "exists" in result
 
     def dir_exists(self, remote_path: str) -> bool:
         """Check if directory exists on router."""
-        result = self.run(f"test -d {remote_path} && echo 'exists' || echo 'not_found'", check=False)
+        cmd = f"test -d {remote_path} && echo 'exists' || echo 'not_found'"
+        result = self.run(cmd, check=False)
         return "exists" in result
 
     def read_file(self, remote_path: str) -> str:

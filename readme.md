@@ -13,6 +13,7 @@ export ROUTER_USB_DIR=/mnt/usb-ef8d1024
 
 - [Установка (база)](#установка-база)
 - [Установка (работа с сервисами)](#установка-работа-с-сервисами)
+- [Автоматизация (Deployer)](#автоматизация-deployer)
 - [Полезное](#полезное)
   - [Бекап и как его делать](#бекап-и-как-его-делать)
   - [Выключение ненужных wifi сетей](#выключение-ненужных-wifi-сетей)
@@ -148,6 +149,40 @@ export ROUTER_USB_DIR=/mnt/usb-ef8d1024
    3. [v2raya](v2raya/readme.md) - настройка прокси через V2rayA и Xray
    4. [filebrowser](filebrowser/readme.md) - настройка доступа к данным через браузер
 
+## Автоматизация (Deployer)
+
+Утилита для управления конфигурацией роутера через CLI. Позволяет:
+- Управлять статическими IP адресами (DHCP + AdGuard)
+- Синхронизировать конфигурации между роутером и локальным репозиторием
+- Деплоить сервисы (AdGuard, V2rayA, Filebrowser)
+
+### Установка
+
+```bash
+uv sync                                    # Установи зависимости
+cp .env.example .env                       # Укажи ROUTER_SSH_PASSWORD
+cp config.yml.example config.yml           # Скопируй пример конфигурации
+# Отредактируй config.yml - заполни свои устройства
+```
+
+### Основные команды
+
+```bash
+uv run router config validate              # Проверка соединения
+
+# DHCP и статические IP
+uv run router dhcp leases                  # Текущие аренды
+uv run router dhcp static --apply --adguard --restart  # Полное обновление
+
+# AdGuard
+uv run router adguard clients --apply      # Обновить клиентов
+
+# Синхронизация
+uv run router sync pull --all              # Скачать все конфиги
+```
+
+Подробнее см. [DEPLOYER.md](DEPLOYER.md).
+
 ## Полезное
 
 ### Бекап и как его делать
@@ -246,21 +281,30 @@ TODO: доступ через firewall с определенных адресо�
 
 ### Настройка статических адресов
 
-TODO: how?
-Статические IP адреса прописываются в файле `/etc/config/dhcp` на основе файла `/tmp/dhcp.leases`:
+Статические IP адреса настраиваются через Deployer (см. раздел [Автоматизация](#автоматизация-deployer)).
+
+Быстрый старт:
 
 ```bash
-# Настраиваем настройки в файле /etc/config/dhcp.add
-# Пример:
-#
-# config host 'heated_towel_rail'
-#    option mac 'd8:c8:0c:f4:56:bf'
-#    option ip '192.168.32.115'
-#    option name 'heated_towel_rail'
+# 1. Отредактируй inventory/hosts.yml - добавь свои устройства
 
-# FIXME: это просто не работает, импорт все перетирает! опасная операция!!!
-scp -O backup/etc/config/dhcp.add root@${ROUTER_ADDRESS}:${ROUTER_USB_DIR}/System/dhcp.add
-ssh root@${ROUTER_ADDRESS} "uci import dhcp < ${ROUTER_USB_DIR}/System/dhcp.add && uci commit dhcp"
+# 2. Проверь что будет изменено
+uv run router dhcp static
+
+# 3. Примени изменения
+uv run router dhcp static --apply --adguard --restart
+```
+
+Вручную через UCI на роутере:
+
+```bash
+# Добавить статический хост
+uci set dhcp.my_device=host
+uci set dhcp.my_device.mac='aa:bb:cc:dd:ee:ff'
+uci set dhcp.my_device.ip='192.168.1.100'
+uci set dhcp.my_device.name='my_device'
+uci commit dhcp
+service dnsmasq restart
 ```
 
 ## Важные файлы и полезные команды

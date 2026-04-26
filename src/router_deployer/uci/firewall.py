@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from ..config import Config
 from .base import UCIConfigHandler
 
 

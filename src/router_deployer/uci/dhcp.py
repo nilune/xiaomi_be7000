@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from typing import Any
 
-from ..config import Config
 from ..connection import SSHConnection
 from .base import UCIConfigHandler
 
@@ -35,10 +34,9 @@ class DHCPHandler(UCIConfigHandler):
                 "options": {
                     "mac": host_data.get("mac", ""),
                     "ip": host_data.get("ip", ""),
-                    "name": hostname,  # Add name option as in existing config
+                    "name": hostname,
                 }
             }
-
             sections.append(section)
 
         return self.format_uci(sections)
@@ -52,8 +50,10 @@ class DHCPHandler(UCIConfigHandler):
         clients = []
 
         for hostname, host_data in hosts_config["hosts"].items():
+            display_name = host_data.get("name", hostname.replace("_", " ").title())
+
             client = {
-                "name": hostname,
+                "name": display_name,
                 "ids": [host_data.get("mac", "")],
                 "use_global_settings": True,
                 "filtering_enabled": False,
@@ -78,16 +78,22 @@ class DHCPHandler(UCIConfigHandler):
         return hosts
 
     def preview_changes(self, conn: SSHConnection) -> dict[str, Any]:
-        """Preview what changes would be made to dhcp config."""
+        """Preview what changes would be made to dhcp config.
+
+        Returns:
+            dict with keys: to_add, to_update, to_remove, unchanged
+        """
         router_hosts = self.get_current_static_hosts(conn)
         inventory_hosts = self.config.hosts.get("hosts", {})
 
         changes = {
             "to_add": [],
             "to_update": [],
+            "to_remove": [],
             "unchanged": [],
         }
 
+        # Check inventory hosts
         for name, data in inventory_hosts.items():
             if name not in router_hosts:
                 changes["to_add"].append({
@@ -110,17 +116,42 @@ class DHCPHandler(UCIConfigHandler):
                 else:
                     changes["unchanged"].append(name)
 
+        # Check for hosts on router but not in inventory (orphans)
+        for name in router_hosts:
+            if name not in inventory_hosts:
+                changes["to_remove"].append({
+                    "name": name,
+                    "mac": router_hosts[name].get("mac"),
+                    "ip": router_hosts[name].get("ip"),
+                })
+
         return changes
 
-    def apply_changes(self, conn: SSHConnection, dry_run: bool = False) -> dict[str, Any]:
-        """Apply changes to router using UCI commands."""
+    def apply_changes(
+        self,
+        conn: SSHConnection,
+        dry_run: bool = False,
+        remove_orphans: bool = False,
+        restart_dnsmasq: bool = False,
+    ) -> dict[str, Any]:
+        """Apply changes to router using UCI commands.
+
+        Args:
+            conn: SSH connection to router
+            dry_run: If True, only preview changes
+            remove_orphans: If True, remove hosts not in inventory
+            restart_dnsmasq: If True, restart dnsmasq after changes
+
+        Returns:
+            dict with keys: added, updated, removed, failed
+        """
         changes = self.preview_changes(conn)
-        applied = {"added": [], "updated": [], "failed": []}
+        applied: dict[str, Any] = {"added": [], "updated": [], "removed": [], "failed": []}
 
         if dry_run:
             return changes
 
-        # Add new hosts using UCI
+        # Add new hosts
         for host in changes["to_add"]:
             try:
                 name = host["name"]
@@ -132,7 +163,7 @@ class DHCPHandler(UCIConfigHandler):
             except Exception as e:
                 applied["failed"].append({"name": name, "error": str(e)})
 
-        # Update existing hosts using UCI
+        # Update existing hosts
         for host in changes["to_update"]:
             try:
                 name = host["name"]
@@ -143,8 +174,21 @@ class DHCPHandler(UCIConfigHandler):
             except Exception as e:
                 applied["failed"].append({"name": name, "error": str(e)})
 
+        # Remove orphan hosts
+        if remove_orphans:
+            for host in changes["to_remove"]:
+                try:
+                    name = host["name"]
+                    conn.run(f"uci delete dhcp.{name}", check=True)
+                    applied["removed"].append(name)
+                except Exception as e:
+                    applied["failed"].append({"name": name, "error": str(e)})
+
         # Commit changes if any were made
-        if applied["added"] or applied["updated"]:
+        if applied["added"] or applied["updated"] or applied["removed"]:
             conn.run("uci commit dhcp", check=True)
+
+            if restart_dnsmasq:
+                conn.run("service dnsmasq restart", check=False)
 
         return applied

@@ -5,8 +5,7 @@
 xmir-patcher
 
 # Temporary files
-tmp/**
-!tmp/.gitkeep
+tmp/
 
 # Backups
 backup/**
@@ -37,4 +36,4 @@ build/
 
 # Secrets
 .env
-inventory/hosts.yml
+config.yml
