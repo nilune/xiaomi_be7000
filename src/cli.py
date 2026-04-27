@@ -3,15 +3,17 @@
 from __future__ import annotations
 
 import subprocess
+from typing import Iterable
 
 import click
 from rich.console import Console
 from rich.table import Table
 
-from .config import Config, get_config
-from .connection import SSHConnection
-from .sync import SyncManager, SYSTEM_CONFIGS
-from .uci.dhcp import DHCPHandler
+from config import Config, get_config
+from connection import SSHConnection
+from services import SERVICE_DEPLOYERS, get_service_deployer
+from sync import SyncManager, SYSTEM_CONFIGS
+from uci.dhcp import DHCPHandler
 
 console = Console()
 
@@ -221,9 +223,7 @@ def pull_cmd(target: str, pull_all: bool) -> None:
         console.print(f"[red]{exc}[/red]")
         raise SystemExit(1) from exc
 
-    for remote_path, success in results:
-        status = "[green]✓[/green]" if success else "[yellow]-[/yellow]"
-        console.print(f"{status} {remote_path} -> {manager.local_path_for_remote(remote_path)}")
+    _print_sync_results(manager, results)
 
 
 @sync.command("push")
@@ -247,9 +247,7 @@ def push_cmd(target: str, dry_run: bool) -> None:
 
     conn = require_connection(config)
     results = manager.push(conn, target)
-    for remote_path, success in results:
-        status = "[green]✓[/green]" if success else "[yellow]-[/yellow]"
-        console.print(f"{status} {manager.local_path_for_remote(remote_path)} -> {remote_path}")
+    _print_sync_results(manager, results, reverse=True)
 
 
 @main.group()
@@ -273,6 +271,13 @@ def deploy_run(service: str | None, dry_run: bool) -> None:
         console.print("[yellow]No enabled services found in config.yml.[/yellow]")
         return
 
+    unknown_services = [name for name in services if name not in SERVICE_DEPLOYERS]
+    if unknown_services:
+        known = ", ".join(sorted(SERVICE_DEPLOYERS))
+        console.print(f"[red]Unknown services: {', '.join(unknown_services)}[/red]")
+        console.print(f"[yellow]Known services: {known}[/yellow]")
+        raise SystemExit(1)
+
     for svc in services:
         if dry_run:
             console.print(f"\n[yellow]{svc}[/yellow]")
@@ -284,7 +289,7 @@ def deploy_run(service: str | None, dry_run: bool) -> None:
                 config.router_address,
                 config.router_user,
             )
-            deployer = _get_deployer(config, conn, svc)
+            deployer = get_service_deployer(svc, config, conn)
             deployer.deploy(dry_run=dry_run)
             if not dry_run:
                 console.print(f"[green]✓ Deployed {svc}[/green]")
@@ -317,27 +322,20 @@ def exec_cmd(command: str, show_stderr: bool) -> None:
             console.print(proc.stderr.strip())
 
 
-def _get_deployer(config: Config, conn: SSHConnection, service: str):
-    """Instantiate a deployer by service name."""
-    if service == "adguard":
-        from .services.adguard import AdGuardDeployer
-
-        return AdGuardDeployer(config, conn)
-    if service == "v2raya":
-        from .services.v2raya import V2rayADeployer
-
-        return V2rayADeployer(config, conn)
-    if service == "core":
-        from .services.core import CoreDeployer
-
-        return CoreDeployer(config, conn)
-    if service == "filebrowser":
-        from .services.filebrowser import FilebrowserDeployer
-
-        return FilebrowserDeployer(config, conn)
-
-    known = ", ".join(["core", "adguard", "v2raya", "filebrowser", *SYSTEM_CONFIGS])
-    raise ValueError(f"Unknown service: {service}. Known values: {known}")
+def _print_sync_results(
+    manager: SyncManager,
+    results: Iterable[tuple[str, bool]],
+    *,
+    reverse: bool = False,
+) -> None:
+    """Render sync pull/push results consistently."""
+    for remote_path, success in results:
+        status = "[green]✓[/green]" if success else "[yellow]-[/yellow]"
+        local_path = manager.local_path_for_remote(remote_path)
+        if reverse:
+            console.print(f"{status} {local_path} -> {remote_path}")
+        else:
+            console.print(f"{status} {remote_path} -> {local_path}")
 
 
 if __name__ == "__main__":

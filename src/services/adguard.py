@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from .base import ServiceDeployer
+from services.base import ServiceDeployer
 
 
 class AdGuardDeployer(ServiceDeployer):

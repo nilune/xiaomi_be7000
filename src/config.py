@@ -67,6 +67,10 @@ class Config:
         """Enabled services configuration."""
         return self._config.get("services", {})
 
+    def service_names(self) -> list[str]:
+        """Configured service names."""
+        return list(self.services.keys())
+
     @property
     def init_dir(self) -> Path:
         """Initial managed repository state."""
@@ -81,6 +85,10 @@ class Config:
         """Get service-specific configuration from config.yml."""
         return self.services.get(service_name, {})
 
+    def is_service_enabled(self, service_name: str) -> bool:
+        """Check if a service is enabled."""
+        return bool(self.get_service_config(service_name).get("enabled", False))
+
     def validate(self) -> list[str]:
         """Validate configuration. Returns list of issues."""
         issues = []
@@ -93,6 +101,13 @@ class Config:
 
         if not self.init_dir.exists():
             issues.append(f"Missing init directory: {self.init_dir}")
+
+        filebrowser_cfg = self.get_service_config("filebrowser")
+        if filebrowser_cfg.get("enabled"):
+            if not str(filebrowser_cfg.get("initial_username", "")).strip():
+                issues.append("services.filebrowser.initial_username must not be empty")
+            if not str(filebrowser_cfg.get("initial_password", "")).strip():
+                issues.append("services.filebrowser.initial_password must not be empty")
 
         return issues
 

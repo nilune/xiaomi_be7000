@@ -9,13 +9,21 @@
 
 ## Автоматизация
 
-Для него автоматизация ограничивается запуском контейнера по параметрам из `config.yml`:
+Теперь сервис участвует в общей модели `init + sync`:
 
 ```bash
 uv run router deploy run filebrowser
+uv run router sync pull filebrowser
+uv run router sync push filebrowser
 ```
 
-В отличие от `core`, `adguard` и `v2raya`, этот сервис не использует схему `_System` в репозитории.
+При деплое создаются и используются:
+- `init/_System/filebrowser/etc/nginx/conf.d/filebrowser.conf`
+- `${ROUTER_USB_DIR}/System/filebrowser/config`
+- `${ROUTER_USB_DIR}/System/filebrowser/database`
+- `/data/services/filebrowser.sh`
+
+То есть конфиг, база и стартовый скрипт становятся перманентными, а не живут только внутри контейнера.
 
 ## Установка
 
@@ -26,6 +34,8 @@ services:
   filebrowser:
     enabled: true
     port: 8088
+    initial_username: admin
+    initial_password: admin
     sources:
       - path: /mnt/usb-ef8d1024
         name: USB Drive
@@ -40,6 +50,8 @@ services:
 ```bash
 uv run router deploy run filebrowser
 ```
+
+На первом запуске будет создан пользователь с логином `admin` и паролем `admin`, если база еще не существует. После этого пароль нужно сразу сменить через UI. Дальше он уже хранится в персистентной базе `${ROUTER_USB_DIR}/System/filebrowser/database/filebrowser.db`.
 
 ### 3. Ручной запуск через Docker
 
@@ -83,6 +95,14 @@ http://${ROUTER_ADDRESS}:8088
 ### Порты
 
 - `port` - порт веб-интерфейса (по умолчанию 8088)
+
+### Персистентные данные
+
+- `${ROUTER_USB_DIR}/System/filebrowser/config` - runtime config
+- `${ROUTER_USB_DIR}/System/filebrowser/database` - база пользователей и настроек
+- `${ROUTER_USB_DIR}/System/filebrowser/etc/nginx/conf.d/filebrowser.conf` - nginx proxy config
+
+Это же участвует в `sync pull/push`.
 
 ## Полезные команды
 

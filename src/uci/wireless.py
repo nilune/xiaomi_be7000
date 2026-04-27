@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from .base import UCIConfigHandler
+from uci.base import UCIConfigHandler
 
 
 class WirelessHandler(UCIConfigHandler):

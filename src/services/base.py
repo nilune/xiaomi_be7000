@@ -7,8 +7,8 @@ from pathlib import Path
 
 from rich.console import Console
 
-from ..config import Config
-from ..connection import SSHConnection
+from config import Config
+from connection import SSHConnection
 
 console = Console()
 
@@ -64,7 +64,7 @@ class ServiceDeployer(ABC):
     def _preview_deploy(self) -> None:
         """Show what would be done in a dry run."""
         console.print(f"  [blue]Service:[/blue] {self.service_name}")
-        if self.local_system_dir.exists():
+        if self.system_subdir and self.local_system_dir.exists():
             console.print(f"  [blue]_System source:[/blue] {self.local_system_dir}")
             for file_path in sorted(p for p in self.local_system_dir.rglob("*") if p.is_file()):
                 console.print(f"    - {file_path.relative_to(self.local_system_dir)}")

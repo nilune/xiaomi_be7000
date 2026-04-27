@@ -5,8 +5,8 @@ from __future__ import annotations
 import re
 from typing import Any
 
-from ..connection import SSHConnection
-from .base import UCIConfigHandler
+from connection import SSHConnection
+from uci.base import UCIConfigHandler
 
 
 class DHCPHandler(UCIConfigHandler):

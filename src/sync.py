@@ -5,8 +5,8 @@ from __future__ import annotations
 from collections import OrderedDict
 from pathlib import Path, PurePosixPath
 
-from .config import Config
-from .connection import SSHConnection
+from config import Config
+from connection import SSHConnection
 
 SYSTEM_CONFIGS = ("dhcp", "firewall", "network", "wireless")
 
@@ -34,29 +34,23 @@ class SyncManager:
                 f"{system_dir}/core/etc",
                 f"{system_dir}/core/usr/bin/core.sh",
                 "/data/services/core.sh",
-                "/etc/init.d/core",
-                "/etc/nginx/conf.d/router.conf",
-                "/etc/profile.d/custom.sh",
             ],
             "adguard": [
                 f"{system_dir}/adGuardHome/etc",
+                f"{system_dir}/adGuardHome/adguardhome.yaml",
                 "/data/services/adguardhome.sh",
-                "/etc/adguardhome.yaml",
-                "/etc/config/adguardhome",
-                "/etc/init.d/adguardhome",
-                "/etc/nginx/conf.d/adguardhome.conf",
             ],
             "v2raya": [
                 f"{system_dir}/v2raya/etc",
                 "/data/services/v2raya.sh",
                 "/data/scripts/update_geo_files.sh",
-                "/etc/v2raya",
-                "/etc/xray",
-                "/etc/config/v2raya",
-                "/etc/init.d/v2raya",
-                "/etc/nginx/conf.d/v2raya.conf",
             ],
-            "filebrowser": [],
+            "filebrowser": [
+                f"{system_dir}/filebrowser/etc",
+                f"{system_dir}/filebrowser/config",
+                f"{system_dir}/filebrowser/database",
+                "/data/services/filebrowser.sh",
+            ],
         }
 
         if target == "all":

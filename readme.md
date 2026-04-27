@@ -30,7 +30,7 @@ export ROUTER_USB_DIR=/mnt/usb-ef8d1024
 - `doc/` — вся документация по сервисам и примеры
 - `init/` — стартовые файлы, которые можно безопасно раскатывать на роутер
 - `sync/` — локальная синхронизация фактического состояния роутера, не коммитится
-- `src/router_deployer/` — CLI-утилита для deploy/sync/DHCP
+- `src/` — CLI-утилита для deploy/sync/DHCP
 
 Основные сервисные документы:
 - [Core](doc/core.md)
@@ -209,12 +209,14 @@ uv run router sync push v2raya
 uv run router deploy run --dry-run
 uv run router deploy run
 uv run router deploy run adguard
+uv run router deploy run filebrowser
 ```
 
 Что важно понимать:
 - `sync/` не коммитится и отражает фактическое состояние роутера
 - `init/` хранит стартовые файлы для первоначального включения сервисов
 - изменения в системных `/etc/config/*` все еще предполагают ручной контроль
+- `filebrowser` теперь хранит базу и конфиг в `${ROUTER_USB_DIR}/System/filebrowser`, а не только внутри контейнера
 
 Подробнее см. [DEPLOYER.md](DEPLOYER.md) и [ARCHITECTURE.md](ARCHITECTURE.md).
 

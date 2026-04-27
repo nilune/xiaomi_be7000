@@ -19,6 +19,8 @@ services:
   filebrowser:
     enabled: false
     port: 8088
+    initial_username: admin
+    initial_password: admin
     sources:
       - path: /mnt/usb-ef8d1024
         name: USB Drive

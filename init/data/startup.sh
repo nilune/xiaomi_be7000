@@ -13,19 +13,28 @@ mkdir -p "/data/usr/bin" "/data/usr/share"
 # --- Set up system settings ---
 mkdir -p /etc/profile.d
 
+# --- Run one service script if present ---
+run_service() {
+    service_name="$1"
+    service_script="$2"
+
+    if [ -x "$service_script" ]; then
+        echo "Run ${service_name}..."
+        "$service_script"
+    else
+        echo "Skip ${service_name}: ${service_script} not found or not executable"
+    fi
+}
+
 # --- Function for starting all components ---
 do_startup() {
     # Wait for network, external disk, ntp to be ready
     sleep 30
 
-    echo "Run Core script..."
-    /data/services/core.sh
-
-    echo "Run AdGuard Home..."
-    /data/services/adguardhome.sh
-
-    echo "Run V2rayA (with XRay)..."
-    /data/services/v2raya.sh
+    run_service "Core" "/data/services/core.sh"
+    run_service "AdGuard Home" "/data/services/adguardhome.sh"
+    run_service "V2rayA (with XRay)" "/data/services/v2raya.sh"
+    run_service "Filebrowser" "/data/services/filebrowser.sh"
 }
 
 # --- Run in background ---

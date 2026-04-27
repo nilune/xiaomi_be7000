@@ -23,7 +23,7 @@ class CommandError(Exception):
 
 def get_ssh_password() -> str | None:
     """Get SSH password from environment or .env file."""
-    repo_root = Path(__file__).parent.parent.parent
+    repo_root = Path(__file__).resolve().parent.parent
     env_file = repo_root / ".env"
     if env_file.exists():
         load_dotenv(env_file)
@@ -233,4 +233,9 @@ class SSHConnection:
         """Create directory on router."""
         flag = "-p " if parents else ""
         self.run(f"mkdir {flag}{shlex.quote(remote_path)}", check=False)
+        return True
+
+    def remove_file(self, remote_path: str) -> bool:
+        """Remove a file on router if it exists."""
+        self.run(f"rm -f {shlex.quote(remote_path)}", check=False)
         return True

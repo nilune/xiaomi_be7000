@@ -6,8 +6,8 @@ from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Any
 
-from ..config import Config
-from ..connection import SSHConnection
+from config import Config
+from connection import SSHConnection
 
 
 class UCIConfigHandler(ABC):
@@ -128,10 +128,10 @@ class UCIConfigHandler(ABC):
 
 def get_uci_handler(config: Config, name: str) -> UCIConfigHandler:
     """Get UCI handler by name."""
-    from .dhcp import DHCPHandler
-    from .firewall import FirewallHandler
-    from .network import NetworkHandler
-    from .wireless import WirelessHandler
+    from uci.dhcp import DHCPHandler
+    from uci.firewall import FirewallHandler
+    from uci.network import NetworkHandler
+    from uci.wireless import WirelessHandler
 
     handlers = {
         "dhcp": DHCPHandler,

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from .base import ServiceDeployer
+from services.base import ServiceDeployer
 
 
 class V2rayADeployer(ServiceDeployer):
