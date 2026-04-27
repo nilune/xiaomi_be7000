@@ -1,0 +1,9 @@
+# Example only. Do not push this file as-is.
+#
+# Manual snippets for IoT migration:
+#
+# config wifi-iface 'iot_2g'
+#     option network 'miot'
+#
+# config wifi-iface 'iot_5g'
+#     option network 'miot'

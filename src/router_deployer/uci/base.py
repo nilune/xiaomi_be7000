@@ -31,8 +31,8 @@ class UCIConfigHandler(ABC):
 
     @property
     def local_backup_path(self) -> Path:
-        """Local backup path for this config."""
-        return self.config.backups_dir / "router" / self.config_name
+        """Local sync path for this config."""
+        return self.config.sync_dir / "etc" / "config" / self.config_name
 
     def pull(self, conn: SSHConnection) -> str:
         """Pull config from router."""

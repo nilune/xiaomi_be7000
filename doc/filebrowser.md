@@ -7,6 +7,16 @@
 - [GitHub](https://github.com/filebrowser/filebrowser)
 - [Документация](https://filebrowser.org/)
 
+## Автоматизация
+
+Для него автоматизация ограничивается запуском контейнера по параметрам из `config.yml`:
+
+```bash
+uv run router deploy run filebrowser
+```
+
+В отличие от `core`, `adguard` и `v2raya`, этот сервис не использует схему `_System` в репозитории.
+
 ## Установка
 
 ### 1. Настройка config.yml
@@ -48,7 +58,7 @@ ${ROUTER_USB_DIR}/mi_docker/docker-binaries/docker run -d \
 
 После запуска откройте в браузере:
 
-```
+```txt
 http://${ROUTER_ADDRESS}:8088
 ```
 
@@ -56,7 +66,7 @@ http://${ROUTER_ADDRESS}:8088
 - Логин: `admin`
 - Пароль: `admin`
 
-**Важно:** Сразу поменяйте пароль после первого входа!
+**Важно:** Сразу поменяйте пароль после первого входа.
 
 ## Конфигурация
 

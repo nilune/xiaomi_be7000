@@ -1,5 +1,6 @@
 # V2rayA
 
+- [Автоматизация](#автоматизация)
 - [Установка](#установка)
 - [Настройка](#настройка)
   - [Списки geo](#списки-geo)
@@ -23,6 +24,27 @@
 - [V2rayA Documentation](https://v2raya.org/en/)
 - [Xray Github](https://github.com/XTLS/Xray-core)
 - [Xray Documentation](https://xtls.github.io/)
+
+## Автоматизация
+
+Автоматизацией можно вынести общие стартовые файлы сервиса и включить его:
+
+```bash
+uv run router deploy run v2raya
+uv run router sync pull v2raya
+uv run router sync push v2raya
+```
+
+Что делает автоматизация:
+- деплоит стартовые файлы из `init/_System/v2raya`
+- копирует `init/data/services/v2raya.sh`
+- копирует `init/data/scripts/update_geo_files.sh`
+- синхронизирует service-specific и runtime-конфиги через `sync/`
+
+Что она не делает:
+- не меняет за вас `/etc/config/firewall`
+- не настраивает сам сервис в Web UI
+- не применяет автоматически системные изменения из `init/etc/config/*`
 
 ## Установка
 
@@ -49,18 +71,21 @@
     mkdir -p v2raya/usr/bin
     ```
 
-3. Копируем туда на систему сам бинарь и необходимые конфиги (да, мы формально переименовываем `xray` в `v2ray` - зачем это нужно сам не знаю):
+3. Копируем туда на систему сам бинарь и необходимые конфиги:
 
     ```bash
     scp -O tmp/v2raya root@${ROUTER_ADDRESS}:${ROUTER_USB_DIR}/System/v2raya/usr/bin/v2raya
     scp -O tmp/xray/xray root@${ROUTER_ADDRESS}:${ROUTER_USB_DIR}/System/v2raya/usr/bin/xray
-    scp -O -r v2raya/etc root@${ROUTER_ADDRESS}:${ROUTER_USB_DIR}/System/v2raya
+    scp -O -r init/_System/v2raya/etc root@${ROUTER_ADDRESS}:${ROUTER_USB_DIR}/System/v2raya
     ```
+
+   Либо используем `uv run router deploy run v2raya`.
 
 4. Скопировать сам скрипт запуска v2raya (и убедитесь что в общем скрипте `/data/startup.sh` включен запуск этого скрипта):
 
     ```bash
-    scp -O v2raya/startup.sh root@${ROUTER_ADDRESS}:/data/services/v2raya.sh
+    scp -O init/data/services/v2raya.sh root@${ROUTER_ADDRESS}:/data/services/v2raya.sh
+    scp -O init/data/startup.sh root@${ROUTER_ADDRESS}:/data/startup.sh
     ```
 
 5. Тестируем запуск:
@@ -86,11 +111,13 @@
 
 ### Списки geo
 
-1. Копируем скрипт регулярного обновления списков get:
+1. Копируем скрипт регулярного обновления списков geo:
 
     ```bash
-    scp -O -r v2raya/scripts/* root@${ROUTER_ADDRESS}:/data/scripts
+    scp -O -r init/data/scripts/update_geo_files.sh root@${ROUTER_ADDRESS}:/data/scripts/update_geo_files.sh
     ```
+
+   Либо он уже будет развернут через `deploy run v2raya`.
 
 2. Добавляем его в регулярный авто-запуск по ночам в файл `/etc/crontabs/root` в конце:
 
@@ -109,7 +136,7 @@
       1. IP форвардинг
       2. Port Sharing
    2. tproxy
-   3. RoutingA -> см. [файл](./routingA.txt)
+   3. RoutingA -> см. [файл](examples/routingA.txt)
    4. Выключено
    5. Выключено
    6. По-умолчанию
@@ -145,6 +172,12 @@
 Можно забекапить путем сохранения файлов - `${ROUTER_USB_DIR}/System/v2raya/etc/v2raya`. Скопировать себе на систему можно следующим образом:
 
 ```bash
-mkdir -p backup
-scp -O -r root@${ROUTER_ADDRESS}:/etc/v2raya backup
+mkdir -p sync/etc
+scp -O -r root@${ROUTER_ADDRESS}:/etc/v2raya sync/etc
+```
+
+Либо использовать:
+
+```bash
+uv run router sync pull v2raya
 ```

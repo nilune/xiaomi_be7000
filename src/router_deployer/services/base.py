@@ -16,111 +16,91 @@ console = Console()
 class ServiceDeployer(ABC):
     """Base class for service deployers."""
 
+    service_name: str = ""
+    system_subdir: str = ""
+    startup_script_name: str | None = None
+
     def __init__(self, config: Config, conn: SSHConnection):
         self.config = config
         self.conn = conn
-        self.name = self.__class__.__name__.replace("Deployer", "").lower()
 
     @property
-    def local_service_dir(self) -> Path:
-        """Local service directory (e.g., ./adguard, ./v2raya)."""
-        return self.config.repo_root / self.name
-
-    @property
-    def local_backup_dir(self) -> Path:
-        """Local backup directory for this service."""
-        return self.config.backups_dir / self.name
+    def local_system_dir(self) -> Path:
+        """Local init directory for a service inside _System."""
+        if not self.system_subdir:
+            return self.config.init_dir / "_System"
+        return self.config.init_dir / "_System" / self.system_subdir
 
     @property
     def remote_system_dir(self) -> str:
-        """Remote system directory on USB."""
-        return f"{self.config.system_dir}/{self.get_remote_dir_name()}"
+        """Remote service directory on USB."""
+        return f"{self.config.system_dir}/{self.system_subdir}".rstrip("/")
 
-    def get_remote_dir_name(self) -> str:
-        """Get the remote directory name (may differ from service name)."""
-        return self.name
+    @property
+    def startup_script_path(self) -> Path | None:
+        """Local startup script path."""
+        if not self.startup_script_name:
+            return None
+        return self.config.init_dir / "data" / "services" / self.startup_script_name
+
+    @property
+    def remote_startup_script(self) -> str | None:
+        """Remote startup script path."""
+        if not self.startup_script_name:
+            return None
+        return f"/data/services/{self.startup_script_name}"
 
     def deploy(self, dry_run: bool = False) -> bool:
         """Deploy service to router."""
         if dry_run:
-            return self._preview_deploy()
+            self._preview_deploy()
+            return True
 
         self._pre_deploy()
-        self.conn.mkdir(self.remote_system_dir, parents=True)
         self._upload_files()
-        self._create_symlinks()
         self._post_deploy()
         return True
 
-    def _preview_deploy(self) -> bool:
+    def _preview_deploy(self) -> None:
         """Show what would be done in a dry run."""
-        console.print(f"  [blue]Service directory:[/blue] {self.local_service_dir}")
-        console.print(f"  [blue]Remote path:[/blue] {self.remote_system_dir}")
+        console.print(f"  [blue]Service:[/blue] {self.service_name}")
+        if self.local_system_dir.exists():
+            console.print(f"  [blue]_System source:[/blue] {self.local_system_dir}")
+            for file_path in sorted(p for p in self.local_system_dir.rglob("*") if p.is_file()):
+                console.print(f"    - {file_path.relative_to(self.local_system_dir)}")
 
-        if self.local_service_dir.exists():
-            console.print("  [blue]Files to upload:[/blue]")
-            for f in self.local_service_dir.rglob("*"):
-                if f.is_file():
-                    rel_path = f.relative_to(self.local_service_dir)
-                    console.print(f"    - {rel_path}")
-        else:
-            console.print("  [yellow]Service directory not found[/yellow]")
+        if self.startup_script_path and self.startup_script_path.exists():
+            console.print(f"  [blue]Startup script:[/blue] {self.startup_script_path}")
 
-        return True
+        for path in self.extra_local_paths():
+            console.print(f"  [blue]Extra asset:[/blue] {path}")
+
+    def _pre_deploy(self) -> None:
+        """Pre-deployment validation."""
+        if self.system_subdir and not self.local_system_dir.exists():
+            raise FileNotFoundError(f"Service directory not found: {self.local_system_dir}")
+
+    def _upload_system_dir(self) -> None:
+        """Upload the full managed _System service directory."""
+        if not self.system_subdir:
+            return
+        self.conn.mkdir(self.config.system_dir, parents=True)
+        self.conn.upload_dir_exact(self.local_system_dir, self.remote_system_dir)
+
+    def _upload_startup_script(self) -> None:
+        """Upload the startup script if the service has one."""
+        if self.startup_script_path and self.startup_script_path.exists() and self.remote_startup_script:
+            self.conn.mkdir("/data/services", parents=True)
+            self.conn.upload(self.startup_script_path, self.remote_startup_script)
+            self.conn.run(f"chmod +x {self.remote_startup_script}", check=False)
+
+    def extra_local_paths(self) -> list[Path]:
+        """Additional local files that should be uploaded."""
+        return []
 
     @abstractmethod
     def _upload_files(self) -> None:
         """Upload service files to router."""
-        pass
-
-    @abstractmethod
-    def _create_symlinks(self) -> None:
-        """Create symlinks on router."""
-        pass
-
-    def _pre_deploy(self) -> None:
-        """Pre-deployment validation."""
-        if not self.local_service_dir.exists():
-            raise FileNotFoundError(f"Service directory not found: {self.local_service_dir}")
 
     def _post_deploy(self) -> None:
         """Post-deployment actions."""
-        local_startup = self.local_service_dir / "startup.sh"
-        if local_startup.exists():
-            remote_startup = f"/data/services/{self.name}.sh"
-            self.conn.upload(local_startup, remote_startup)
-            self.conn.run(f"chmod +x {remote_startup}")
-
-    def pull(self) -> bool:
-        """Pull configuration from router to local backup."""
-        self.local_backup_dir.mkdir(parents=True, exist_ok=True)
-        return self._pull_config()
-
-    @abstractmethod
-    def _pull_config(self) -> bool:
-        """Pull service-specific config."""
-        pass
-
-    def push(self, dry_run: bool = False) -> bool:
-        """Push local configuration to router."""
-        if not self.local_backup_dir.exists():
-            raise FileNotFoundError(f"No local backup found: {self.local_backup_dir}")
-
-        if dry_run:
-            return True
-
-        return self._push_config()
-
-    @abstractmethod
-    def _push_config(self) -> bool:
-        """Push service-specific config."""
-        pass
-
-    def restart(self) -> bool:
-        """Restart service on router."""
-        result = self.conn.run(f"service {self.name} restart", check=False)
-        return "error" not in result.lower()
-
-    def status(self) -> str:
-        """Get service status."""
-        return self.conn.run(f"service {self.name} status", check=False)

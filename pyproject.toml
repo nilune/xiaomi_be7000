@@ -2,7 +2,7 @@
 name = "router-deployer"
 version = "0.1.0"
 description = "Deployment and configuration management for Xiaomi BE7000 router"
-readme = "README.md"
+readme = "readme.md"
 requires-python = ">=3.10"
 dependencies = [
     "click>=8.1.0",

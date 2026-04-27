@@ -1,25 +1,25 @@
 # Router Deployer
 
-Утилита для управления конфигурацией роутера Xiaomi BE7000.
+Утилита для управления структурой `init/`, `sync/` и точечными действиями на роутере Xiaomi BE7000.
 
-Проблемы:
-1. `uv run router utils exec --help` - некрасивый help
-2. все таки, пусть конфигурируется статика только в /etc/config/dhcp (без adguard). Также в целом отказываемся от подхода хранения всех dhcp клиентов в файле (а зачем, они уже могут управляться через pull/push модель, а щас мы просто дублируем). Меняем ее на следующее: должно просто появится консольная команда, которая позволяет для определенного mac адреса добавить имя и IP адрес. От просмотра dhcp leases не отказываемся, пусть остается. Также должна появится команда по удалению хоста из /etc/config/dhcp (по имени, ip или mac адресу)
-3. в целом убираем конфигурирование v2raya и adguard целиком (пусть будет только enabled: true/false). Все остальное с помощью модели pull / push
-4. в `backups` почему-то 3 вложенных директории после pull появляется `v2raya/v2raya/v2raya`. Предлагаю в целом поменять подход в pull / push модели - пусть "бекапяться" нужные файлы согласно их реальным путям на роутере. То есть /etc/config/dhcp в файле backups/etc/config/dhcp. Для системной папки - пусть будет директория `_System`. То есть все нужные файлы в /mnt/<флешка>/System будут транслироваться в backups/_System. Конечно, никакие логи не должны копироваться, должны копироваться папки /etc. В целом может переименуем `backups` в `sync`? Также не забуть про конфиги и скрипты в папке /data.
-5. и давай в целом поменяем структуру всего репозитория (да, меняй и ранее мной созданные файлы тоже): пусть появится общая директория с настройками (то есть объединить все дочерние /etc директории в каждом из сервисов) - возможно директория `init`? В ней будут указаны изначальные конфиги, которые будут использоваться при первоначаной настройки и включения любого из сервиса. То есть включаем v2raya - на роутер отправляются /etc конфиги для него на роутер (а также скрипты в /data) [но без изменений в /etc/config]. Конечно, в этой директории должны быть примеры изменений в файлах /etc/config/..., но эти изменения не должны применяться (иначе мы что-то можем сломать). То есть при использовании таких скриптов должны задеплоится только конфиги самого сервиса, но не системные.
-6. В целом директории `init` и `sync` в конце концов должны иметь одну и ту же структуру, просто у них разные задачи. `init` - пушится в репозиторий и имеет изначальные настройки, не меняет файлы в /etc/config (а имеет только примеры того, как меняется). `sync` - не пушится в git и суть ее в том, чтобы постоянно синхронизировать и обновлять конфиги.
-7. Учитывая, что структура репозитория в корне меняется, то также скорее всего стоит явно вынести `readme.md` для разных сервисов из их папок и переименовать в названия сервисов, давай все доки по отдельным сервисам вынесем в директорию `doc`. По сути мы прихожим к одной большой директории с описанием в markdown для каждого из сервисов в директории `doc` и доп. директориям `init` и `sync`, ну а также корневыми файлами. Обнови все ссылки между файлами, где это необходимо.
-8. Дополни все readme.md по сервисам тем, что вынесение общих настроек сервиса и его "включение" можно сделать через автоматизацию (но не забудь, что при этом изменение доп. настроек в /etc/config должно проходить вручную все также)
-9. Над файлами, что останутся в старой структуре - явно спроси по каждому что делать и свои идеи по нему, и решим вместе куда их закидывать. Например, по всяким v2raya/routingA.txt - идея их закинуть в `doc/examples/routingA.txt`. Туда же по DNS серверам для dhcp.
+## Статус по исходным проблемам
+
+1. `utils exec --help` упрощен.
+2. Статика DHCP больше не зависит от `hosts.yml` и AdGuard.
+3. Конфигурирование AdGuard/V2rayA через `config.yml` сведено к `enabled: true/false`.
+4. `backups` заменен на `sync` с отражением реальных путей роутера.
+5. Сервисные стартовые файлы вынесены в `init/`.
+6. `init/` и `sync/` приведены к одной логике путей: `_System`, `data`, `etc`.
+7. Сервисная документация вынесена в `doc/`.
+8. В сервисных readme добавлена оговорка про автоматическое включение и ручные `/etc/config`.
+9. Остатки старой структуры нужно дочистить отдельно после согласования.
 
 ## Установка
 
 ```bash
-uv sync                                    # Установи зависимости
-cp .env.example .env                       # Укажи ROUTER_SSH_PASSWORD
-cp config.yml.example config.yml           # Скопируй пример конфигурации
-# Отредактируй config.yml - заполни свои устройства и настройки
+uv sync
+cp .env.example .env
+cp config.yml.example config.yml
 ```
 
 ## Запуск
@@ -33,77 +33,48 @@ uv run router --help
 ### Конфигурация
 
 ```bash
-uv run router config show      # Показать конфигурацию
-uv run router config validate  # Проверить соединение
+uv run router config show
+uv run router config validate
 ```
 
-### DHCP + AdGuard
+### DHCP
 
 ```bash
-uv run router dhcp leases              # Текущие аренды IP
-uv run router dhcp static              # Предпросмотр изменений
-uv run router dhcp static --apply      # Применить DHCP изменения
-uv run router dhcp static --apply --adguard --restart  # Полное обновление
-```
-
-### AdGuard
-
-```bash
-uv run router adguard clients          # Показать клиентов
-uv run router adguard clients --apply  # Обновить клиентов
+uv run router dhcp leases
+uv run router dhcp hosts
+uv run router dhcp add camera aa:bb:cc:dd:ee:ff 192.168.31.80
+uv run router dhcp remove aa:bb:cc:dd:ee:ff --by mac
 ```
 
 ### Синхронизация
 
 ```bash
-uv run router sync pull --all          # Скачать все конфиги
-uv run router sync pull adguard        # Скачать конкретный конфиг
-uv run router sync push dhcp --force   # Отправить конфиг
+uv run router sync pull --all
+uv run router sync pull adguard
+uv run router sync pull v2raya
+
+uv run router sync push dhcp --dry-run
+uv run router sync push adguard
+uv run router sync push v2raya
 ```
 
 ### Deploy
 
 ```bash
-uv run router deploy run --dry-run     # Предпросмотр
-uv run router deploy run adguard       # Деплой сервиса
+uv run router deploy run --dry-run
+uv run router deploy run
+uv run router deploy run adguard
 ```
 
-## Конфигурация
+### Utils
 
-### config.yml
-
-```yaml
-router:
-  address: 192.168.31.1
-  user: root
-  usb_dir: /mnt/usb-ef8d1024
-
-services:
-  adguard:
-    enabled: true
-    log_level: info
-
-  v2raya:
-    enabled: true
-    xray_log_level: warning
-
-  filebrowser:
-    enabled: false
-    port: 8088
-    sources:
-      - path: /mnt/usb-ef8d1024
-        name: USB Drive
-      - path: /etc/config
-        name: Router Config
-
-hosts:
-  air_conditioner_bedroom:
-    mac: "30:c9:22:05:48:94"
-    ip: 192.168.32.106
-    name: "Air Conditioner Bedroom"
+```bash
+uv run router utils exec "uptime"
+uv run router utils exec "logread | tail -20" --show-stderr
 ```
 
-## Безопасность
+## Примечания
 
-- `.env` и `config.yml` в `.gitignore`
-- UCI push требует `--force` для применения
+- `sync/` не должен коммититься.
+- `init/etc/config/*` содержит только примеры ручных изменений.
+- для сервисов автоматизируется включение стартовых файлов, но не полная настройка системных UCI-конфигов.

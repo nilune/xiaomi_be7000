@@ -1,8 +1,8 @@
 # XIAOMI BE7000
 
-Инструкция по подготовке роутера для работы с различными компонентами (v2raya, adguardhome, прочее).
+Инструкция по подготовке роутера для работы с различными компонентами (`v2raya`, `adguardhome`, прочее).
 
-> Все команды подразумевается запускать либо с роутера, либо из этой директории (даже для любых readme во вложенных директориях).
+> Все команды подразумевается запускать либо с роутера, либо из этой директории.
 
 В документации используются общие переменные (поменяйте их согласно вашим настройкам):
 
@@ -11,6 +11,7 @@ export ROUTER_ADDRESS=192.168.31.1
 export ROUTER_USB_DIR=/mnt/usb-ef8d1024
 ```
 
+- [Структура репозитория](#структура-репозитория)
 - [Установка (база)](#установка-база)
 - [Установка (работа с сервисами)](#установка-работа-с-сервисами)
 - [Автоматизация (Deployer)](#автоматизация-deployer)
@@ -22,11 +23,31 @@ export ROUTER_USB_DIR=/mnt/usb-ef8d1024
 - [Важные файлы и полезные команды](#важные-файлы-и-полезные-команды)
 - [Задачи](#задачи)
 
+## Структура репозитория
+
+Текущая структура после переработки такая:
+
+- `doc/` — вся документация по сервисам и примеры
+- `init/` — стартовые файлы, которые можно безопасно раскатывать на роутер
+- `sync/` — локальная синхронизация фактического состояния роутера, не коммитится
+- `src/router_deployer/` — CLI-утилита для deploy/sync/DHCP
+
+Основные сервисные документы:
+- [Core](doc/core.md)
+- [AdGuard Home](doc/adguard.md)
+- [V2rayA](doc/v2raya.md)
+- [FileBrowser](doc/filebrowser.md)
+- [Примеры](doc/examples)
+
+Важно:
+- изменения в системных `/etc/config/dhcp`, `/etc/config/firewall`, `/etc/config/network`, `/etc/config/wireless` по-прежнему считаются ручным шагом
+- `init/etc/config/*` содержит примеры и заготовки, а не файлы для безусловного автоматического применения
+
 ## Установка (база)
 
 > Сделано на основе 1-4 пунктов из [статьи на 4pda](https://4pda.to/forum/index.php?showtopic=1070166&view=findpost&p=131597534).
 
-1. Настраиваем ssh к роутеру с помощью [xmir-patcher](https://github.com/openwrt-xiaomi/xmir-patcher.git) (также смотри [инструкцию](https://4pda.to/forum/index.php?showtopic=1070166&view=findpost&p=131157661):
+1. Настраиваем ssh к роутеру с помощью [xmir-patcher](https://github.com/openwrt-xiaomi/xmir-patcher.git) (также смотри [инструкцию](https://4pda.to/forum/index.php?showtopic=1070166&view=findpost&p=131157661)):
    1. `git clone https://github.com/openwrt-xiaomi/xmir-patcher.git`
    2. (опционально, если нужен новый python) ставим через `uv`:
 
@@ -72,7 +93,7 @@ export ROUTER_USB_DIR=/mnt/usb-ef8d1024
         ```
 
     2. Вставляем флешку и через UI включаем виртуальную память
-    3. Устанавливаем docker - просто все кнопки по очереди. Потом заходим в UI и меняем пароль (дефолтный логин-пароль - admin:admin; менять через кнопку замочка сверху справа)
+    3. Устанавливаем docker - просто все кнопки по очереди. Потом заходим в UI и меняем пароль (дефолтный логин-пароль - `admin:admin`; менять через кнопку замочка сверху справа)
     4. Убираем аутентификацию для docker согласно [инструкции](https://4pda.to/forum/index.php?showtopic=1070166&view=findpost&p=131213506). То есть делаем:
         1. Создаем файл `/etc/crontabs/patches/disable_opa.sh`:
 
@@ -114,74 +135,88 @@ export ROUTER_USB_DIR=/mnt/usb-ef8d1024
 
 1. На внешнем накопителе создать папку `System` - в ней будут устанавливаться все необходимые зависимости для устанавливаемых утилит.
 2. В директории `/data` выполнить следующее:
-    1. Создать директорию `services`, в которой будут находится все скрипты для запуска конкретных сервисов:
+   1. Создать директорию `services`, в которой будут находится все скрипты для запуска конкретных сервисов:
 
-          ```bash
-          mkdir -p /data/services
-          ```
+      ```bash
+      mkdir -p /data/services
+      ```
 
-    2. Скопировать в нее скрипт `startup.sh`:
+   2. Скопировать в нее скрипт `startup.sh`:
 
-          ```bash
-          scp -O startup.sh root@${ROUTER_ADDRESS}:/data
-          ```
+      ```bash
+      scp -O init/data/startup.sh root@${ROUTER_ADDRESS}:/data/startup.sh
+      ```
 
-    3. Включить / выключить в этом скрипте необходимые компоненты (с помощью комментариев в функции `do_startup`)
-    4. Проставить в скрипте актуальный путь до вашего внешнего устройства (переменная `USB_DIR`)
-    5. Также создать директорию `scripts` для дополнительных скриптов:
+   3. Включить / выключить в этом скрипте необходимые компоненты (с помощью комментариев в функции `do_startup`)
+   4. Проставить в скрипте актуальный путь до вашего внешнего устройства (переменная `USB_DIR`)
+   5. Также создать директорию `scripts` для дополнительных скриптов:
 
-        ```bash
-        mkdir -p /data/scripts
-        ```
+      ```bash
+      mkdir -p /data/scripts
+      ```
 
 3. В `/etc/config/firewall` добавить в самом конце следующее (это позволит запускать скрипт `/data/startup.sh` при каждом включение роутера):
 
-    ```bash
+    ```txt
     config include 'startup'
         option type 'script'
         option path '/data/startup.sh'
         option enabled '1'
     ```
 
-4. Далее идем в интересуемые вас директории и настраиваете согласно описанным там readme:
-   1. [core](core/readme.md) - специальная настройка для кастомизации системных настроек
-   2. [adguard](adguard/readme.md) - настройка DNS через AdGuardHome
-   3. [v2raya](v2raya/readme.md) - настройка прокси через V2rayA и Xray
-   4. [filebrowser](filebrowser/readme.md) - настройка доступа к данным через браузер
+4. Далее идем в интересуемые вас документы и настраиваете сервисы согласно описанию:
+   1. [Core](doc/core.md) - специальная настройка для кастомизации системных настроек
+   2. [AdGuard Home](doc/adguard.md) - настройка DNS через AdGuardHome
+   3. [V2rayA](doc/v2raya.md) - настройка прокси через V2rayA и Xray
+   4. [FileBrowser](doc/filebrowser.md) - настройка доступа к данным через браузер
 
 ## Автоматизация (Deployer)
 
-Утилита для управления конфигурацией роутера через CLI. Позволяет:
-- Управлять статическими IP адресами (DHCP + AdGuard)
-- Синхронизировать конфигурации между роутером и локальным репозиторием
-- Деплоить сервисы (AdGuard, V2rayA, Filebrowser)
+Утилита для управления конфигурацией роутера через CLI. Теперь она позволяет:
+- управлять статическими IP адресами напрямую через `/etc/config/dhcp`
+- синхронизировать конфигурации между роутером и локальной директорией `sync/`
+- деплоить стартовые файлы сервисов из `init/`
 
 ### Установка
 
 ```bash
-uv sync                                    # Установи зависимости
-cp .env.example .env                       # Укажи ROUTER_SSH_PASSWORD
-cp config.yml.example config.yml           # Скопируй пример конфигурации
-# Отредактируй config.yml - заполни свои устройства
+uv sync
+cp .env.example .env
+cp config.yml.example config.yml
 ```
+
+В `.env` должен быть `ROUTER_SSH_PASSWORD`.
 
 ### Основные команды
 
 ```bash
 uv run router config validate              # Проверка соединения
+uv run router config show
 
 # DHCP и статические IP
 uv run router dhcp leases                  # Текущие аренды
-uv run router dhcp static --apply --adguard --restart  # Полное обновление
-
-# AdGuard
-uv run router adguard clients --apply      # Обновить клиентов
+uv run router dhcp hosts                   # Текущие статические хосты
+uv run router dhcp add my_device aa:bb:cc:dd:ee:ff 192.168.31.80
+uv run router dhcp remove aa:bb:cc:dd:ee:ff --by mac
 
 # Синхронизация
-uv run router sync pull --all              # Скачать все конфиги
+uv run router sync pull --all
+uv run router sync pull adguard
+uv run router sync push dhcp --dry-run
+uv run router sync push v2raya
+
+# Deploy
+uv run router deploy run --dry-run
+uv run router deploy run
+uv run router deploy run adguard
 ```
 
-Подробнее см. [DEPLOYER.md](DEPLOYER.md).
+Что важно понимать:
+- `sync/` не коммитится и отражает фактическое состояние роутера
+- `init/` хранит стартовые файлы для первоначального включения сервисов
+- изменения в системных `/etc/config/*` все еще предполагают ручной контроль
+
+Подробнее см. [DEPLOYER.md](DEPLOYER.md) и [ARCHITECTURE.md](ARCHITECTURE.md).
 
 ## Полезное
 
@@ -190,18 +225,19 @@ uv run router sync pull --all              # Скачать все конфиг�
 1. Базовые ваши настройки: скриншоты и дубли любых файлов, которые вам важны и нужны
 2. Общие настройки роутера: на web странице роутера на странице **Settings** -> **System Settings** есть бекап настроек и их восстановление
 3. Вся система: с помощью `xmir-patcher`
+4. Для рабочей синхронизации конфигов теперь используйте `uv run router sync pull ...`, результат будет складываться в `sync/`
 
 ### Выключение ненужных wifi сетей
 
 Согласно комментарию на [4pda](https://4pda.to/forum/index.php?showtopic=1070166&view=findpost&p=130785221) выключаем ненужные wifi сетей в файле `/etc/config/wireless`:
-1. вредная miaiot сеть от xiaomi: у `config wifi-iface 'miot_2G'` выставляем `option disabled '1'`
-2. mesh виртуальную сеть: у `config wifi-iface 'bh_ap'` выставляем `option disabled '1'`
-3. guest / iot сети если вам не нужен какой-то из диапазонов (например 2G или 5G): также выставляем `option disabled '1'` в необходимых местах
+1. вредная `miaiot` сеть от xiaomi: у `config wifi-iface 'miot_2G'` выставляем `option disabled '1'`
+2. `mesh` виртуальную сеть: у `config wifi-iface 'bh_ap'` выставляем `option disabled '1'`
+3. `guest / iot` сети если вам не нужен какой-то из диапазонов (например 2G или 5G): также выставляем `option disabled '1'` в необходимых местах
 
 ### Донастройка IoT сети
 
 По дефолту IoT сеть находится в LAN и в ней все равно нельзя настраивать статические адреса, поэтому появилось желание перенести эту сеть в уже созданную отдельную `miot` сеть на адресах `192.168.32.*` и как внутри прописать статику:
-1. Включаем в приложение Xiaomi саму IoT сеть
+1. Включаем в приложении Xiaomi саму IoT сеть
 2. В файле `/etc/config/wireless` ставим следующие опции в соответствующем разделе:
 
     ```txt
@@ -210,6 +246,7 @@ uv run router sync pull --all              # Скачать все конфиг�
 
     config wifi-iface 'iot_5g'
         option network 'miot'
+    ```
 
 3. В файле `/etc/config/firewall` добавляем (настройка для **xray** нужна только если вы настраивали **v2raya** на роутере):
 
@@ -281,18 +318,25 @@ TODO: доступ через firewall с определенных адресо�
 
 ### Настройка статических адресов
 
-Статические IP адреса настраиваются через Deployer (см. раздел [Автоматизация](#автоматизация-deployer)).
+Статические IP адреса теперь настраиваются либо:
+- точечно через `router dhcp add/remove`
+- вручную через UCI на роутере
+- либо через ручное редактирование `sync/etc/config/dhcp` с последующим `sync push`
 
-Быстрый старт:
+Быстрый старт через CLI:
 
 ```bash
-# 1. Отредактируй inventory/hosts.yml - добавь свои устройства
+uv run router dhcp hosts
+uv run router dhcp add my_device aa:bb:cc:dd:ee:ff 192.168.1.100
+uv run router dhcp remove my_device --by name
+```
 
-# 2. Проверь что будет изменено
-uv run router dhcp static
+Если хотите работать через pull/push модель:
 
-# 3. Примени изменения
-uv run router dhcp static --apply --adguard --restart
+```bash
+uv run router sync pull dhcp
+# редактируем sync/etc/config/dhcp
+uv run router sync push dhcp
 ```
 
 Вручную через UCI на роутере:
@@ -311,7 +355,7 @@ service dnsmasq restart
 
 1. `/etc/config/network` - все сети на роутере (в том числе `docker`, `lan`, `guest`)
 2. `/etc/config/wireless` - wifi сети и их настройка
-3. `/etc/config/firewall` - правила firewall между сетями, и, как ни странно, именно тут вызываются начальные скрипты настройке вашей ОС с помощью хака
+3. `/etc/config/firewall` - правила firewall между сетями, и, как ни странно, именно тут вызываются начальные скрипты настройки вашей ОС с помощью хака
 4. `/etc/config/dhcp` - настройка dhcp, тут можно вручную прописывать статику. Дополнительно:
    - `/tmp/dhcp.leases` - в этом файле все временно выданные IP адреса (не статика)
    - `/etc/init.d/dnsmasq restart` - команда для применения конфига после изменений
@@ -319,6 +363,8 @@ service dnsmasq restart
 5. `/etc/config/samba` и `/etc/samba/smb.conf` - настройки `samba`
 6. `iptables -t mangle -L -n -v` - списки `iptables` для трафика
 7. `netstat -ntplu` - открытые слушающие порты
+8. `sync/` - локальная рабочая копия актуальных конфигов и файлов роутера
+9. `init/` - стартовые файлы, которые используются для первичной раскатки сервисов
 
 ## Задачи
 

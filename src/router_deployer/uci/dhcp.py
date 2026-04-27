@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from typing import Any
 
 from ..connection import SSHConnection
@@ -19,176 +20,113 @@ class DHCPHandler(UCIConfigHandler):
         """Validate DHCP config content."""
         return "config dnsmasq" in content
 
-    def generate_static_entries(self) -> str:
-        """Generate static host entries from inventory/hosts.yml."""
-        hosts_config = self.config.hosts
-        if not hosts_config or "hosts" not in hosts_config:
-            return "# No hosts defined in inventory/hosts.yml"
-
-        sections = []
-
-        for hostname, host_data in hosts_config["hosts"].items():
-            section = {
-                "type": "host",
-                "name": hostname,
-                "options": {
-                    "mac": host_data.get("mac", ""),
-                    "ip": host_data.get("ip", ""),
-                    "name": hostname,
-                }
-            }
-            sections.append(section)
-
-        return self.format_uci(sections)
-
-    def generate_adguard_clients(self) -> list[dict[str, Any]]:
-        """Generate AdGuard client entries from inventory/hosts.yml."""
-        hosts_config = self.config.hosts
-        if not hosts_config or "hosts" not in hosts_config:
-            return []
-
-        clients = []
-
-        for hostname, host_data in hosts_config["hosts"].items():
-            display_name = host_data.get("name", hostname.replace("_", " ").title())
-
-            client = {
-                "name": display_name,
-                "ids": [host_data.get("mac", "")],
-                "use_global_settings": True,
-                "filtering_enabled": False,
-            }
-            clients.append(client)
-
-        return clients
-
-    def get_current_static_hosts(self, conn: SSHConnection) -> dict[str, dict[str, str]]:
-        """Get current static host entries from router as dict keyed by name."""
+    def list_static_hosts(self, conn: SSHConnection) -> list[dict[str, str]]:
+        """Return current static host entries sorted by section name."""
         self.pull(conn)
 
-        hosts = {}
+        hosts = []
         for section in self._parsed.get("sections", []):
-            if section.get("type") == "host":
-                name = section.get("name")
-                if name:
-                    hosts[name] = {
-                        "mac": section.get("options", {}).get("mac", ""),
-                        "ip": section.get("options", {}).get("ip", ""),
-                    }
-        return hosts
+            if section.get("type") != "host":
+                continue
 
-    def preview_changes(self, conn: SSHConnection) -> dict[str, Any]:
-        """Preview what changes would be made to dhcp config.
+            options = section.get("options", {})
+            hosts.append(
+                {
+                    "section": section.get("name", ""),
+                    "name": options.get("name", section.get("name", "")),
+                    "mac": options.get("mac", ""),
+                    "ip": options.get("ip", ""),
+                }
+            )
 
-        Returns:
-            dict with keys: to_add, to_update, to_remove, unchanged
-        """
-        router_hosts = self.get_current_static_hosts(conn)
-        inventory_hosts = self.config.hosts.get("hosts", {})
+        return sorted(hosts, key=lambda item: (item["name"], item["section"]))
 
-        changes = {
-            "to_add": [],
-            "to_update": [],
-            "to_remove": [],
-            "unchanged": [],
-        }
+    def find_hosts(self, conn: SSHConnection, value: str, by: str = "any") -> list[dict[str, str]]:
+        """Find static hosts by name, ip, mac, or any field."""
+        normalized = value.strip().lower()
+        matches = []
 
-        # Check inventory hosts
-        for name, data in inventory_hosts.items():
-            if name not in router_hosts:
-                changes["to_add"].append({
-                    "name": name,
-                    "mac": data.get("mac"),
-                    "ip": data.get("ip"),
-                })
-            else:
-                router_host = router_hosts[name]
-                if (router_host.get("mac") != data.get("mac") or
-                    router_host.get("ip") != data.get("ip")):
-                    changes["to_update"].append({
-                        "name": name,
-                        "old": router_host,
-                        "new": {
-                            "mac": data.get("mac"),
-                            "ip": data.get("ip"),
-                        },
-                    })
-                else:
-                    changes["unchanged"].append(name)
+        for host in self.list_static_hosts(conn):
+            fields = {
+                "name": host["name"].lower(),
+                "ip": host["ip"].lower(),
+                "mac": host["mac"].lower(),
+                "section": host["section"].lower(),
+            }
 
-        # Check for hosts on router but not in inventory (orphans)
-        for name in router_hosts:
-            if name not in inventory_hosts:
-                changes["to_remove"].append({
-                    "name": name,
-                    "mac": router_hosts[name].get("mac"),
-                    "ip": router_hosts[name].get("ip"),
-                })
+            if by == "any":
+                if normalized in fields.values():
+                    matches.append(host)
+            elif by == "name":
+                if normalized in {fields["name"], fields["section"]}:
+                    matches.append(host)
+            elif by in {"ip", "mac", "section"} and fields[by] == normalized:
+                matches.append(host)
 
-        return changes
+        return matches
 
-    def apply_changes(
+    def add_static_host(
         self,
         conn: SSHConnection,
-        dry_run: bool = False,
-        remove_orphans: bool = False,
+        *,
+        name: str,
+        mac: str,
+        ip: str,
+        replace: bool = False,
         restart_dnsmasq: bool = False,
     ) -> dict[str, Any]:
-        """Apply changes to router using UCI commands.
+        """Add or replace a static DHCP host entry."""
+        matches = []
+        current_hosts = self.list_static_hosts(conn)
+        for host in current_hosts:
+            if host["name"].lower() == name.lower() or host["mac"].lower() == mac.lower() or host["ip"] == ip:
+                matches.append(host)
 
-        Args:
-            conn: SSH connection to router
-            dry_run: If True, only preview changes
-            remove_orphans: If True, remove hosts not in inventory
-            restart_dnsmasq: If True, restart dnsmasq after changes
+        if matches and not replace:
+            return {"added": False, "replaced": [], "conflicts": matches}
 
-        Returns:
-            dict with keys: added, updated, removed, failed
-        """
-        changes = self.preview_changes(conn)
-        applied: dict[str, Any] = {"added": [], "updated": [], "removed": [], "failed": []}
+        removed_sections = []
+        for host in matches:
+            conn.run(f"uci delete dhcp.{host['section']}", check=True)
+            removed_sections.append(host["section"])
 
-        if dry_run:
-            return changes
+        section_name = self._make_section_name(name)
+        conn.run(f"uci set dhcp.{section_name}=host", check=True)
+        conn.run(f"uci set dhcp.{section_name}.name='{name}'", check=True)
+        conn.run(f"uci set dhcp.{section_name}.mac='{mac.lower()}'", check=True)
+        conn.run(f"uci set dhcp.{section_name}.ip='{ip}'", check=True)
+        conn.run("uci commit dhcp", check=True)
 
-        # Add new hosts
-        for host in changes["to_add"]:
-            try:
-                name = host["name"]
-                conn.run(f"uci set dhcp.{name}=host", check=True)
-                conn.run(f"uci set dhcp.{name}.mac='{host['mac']}'", check=True)
-                conn.run(f"uci set dhcp.{name}.ip='{host['ip']}'", check=True)
-                conn.run(f"uci set dhcp.{name}.name='{name}'", check=True)
-                applied["added"].append(name)
-            except Exception as e:
-                applied["failed"].append({"name": name, "error": str(e)})
+        if restart_dnsmasq:
+            conn.run("service dnsmasq restart", check=False)
 
-        # Update existing hosts
-        for host in changes["to_update"]:
-            try:
-                name = host["name"]
-                new = host["new"]
-                conn.run(f"uci set dhcp.{name}.mac='{new['mac']}'", check=True)
-                conn.run(f"uci set dhcp.{name}.ip='{new['ip']}'", check=True)
-                applied["updated"].append(name)
-            except Exception as e:
-                applied["failed"].append({"name": name, "error": str(e)})
+        return {"added": True, "section": section_name, "replaced": removed_sections}
 
-        # Remove orphan hosts
-        if remove_orphans:
-            for host in changes["to_remove"]:
-                try:
-                    name = host["name"]
-                    conn.run(f"uci delete dhcp.{name}", check=True)
-                    applied["removed"].append(name)
-                except Exception as e:
-                    applied["failed"].append({"name": name, "error": str(e)})
+    def remove_static_host(
+        self,
+        conn: SSHConnection,
+        *,
+        value: str,
+        by: str = "any",
+        restart_dnsmasq: bool = False,
+    ) -> dict[str, Any]:
+        """Remove static DHCP entries matched by selector."""
+        matches = self.find_hosts(conn, value, by=by)
+        if not matches:
+            return {"removed": [], "matched": 0}
 
-        # Commit changes if any were made
-        if applied["added"] or applied["updated"] or applied["removed"]:
-            conn.run("uci commit dhcp", check=True)
+        removed = []
+        for host in matches:
+            conn.run(f"uci delete dhcp.{host['section']}", check=True)
+            removed.append(host)
 
-            if restart_dnsmasq:
-                conn.run("service dnsmasq restart", check=False)
+        conn.run("uci commit dhcp", check=True)
+        if restart_dnsmasq:
+            conn.run("service dnsmasq restart", check=False)
 
-        return applied
+        return {"removed": removed, "matched": len(removed)}
+
+    def _make_section_name(self, name: str) -> str:
+        """Convert arbitrary host name into a safe UCI section name."""
+        section_name = re.sub(r"[^a-zA-Z0-9_]+", "_", name.strip().lower()).strip("_")
+        return section_name or "static_host"

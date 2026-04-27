@@ -1,5 +1,6 @@
 # AdGuardHome
 
+- [Автоматизация](#автоматизация)
 - [Установка](#установка)
 - [Настройка](#настройка)
 - [Обновление](#обновление)
@@ -24,6 +25,28 @@
 - [Github](https://github.com/AdguardTeam/AdGuardHome)
 - [Documentation](https://adguard.com/ru/adguard-home/overview.html)
 
+## Автоматизация
+
+Автоматизацией можно вынести стартовые файлы сервиса и включить его:
+
+```bash
+uv run router deploy run adguard
+uv run router sync pull adguard
+uv run router sync push adguard
+```
+
+Что делает автоматизация:
+- деплоит стартовые файлы из `init/_System/adGuardHome`
+- копирует скрипт `init/data/services/adguardhome.sh`
+- синхронизирует service-specific файлы через `sync/`
+
+Что она не делает:
+- не меняет за вас системный `/etc/config/dhcp`
+- не выполняет все дополнительные системные UCI-правки
+- не заменяет ручную настройку самого AdGuard через Web UI
+
+Примеры системных правок лежат в `init/etc/config/*`, но применять их все так же нужно вручную и осознанно.
+
 ## Установка
 
 Сделано на основе инструкции из [тг](https://t.me/xiaomi_be7000/12423) (от @T7m):
@@ -42,25 +65,31 @@
     mkdir -p adGuardHome/usr/bin
     ```
 
-3. Копируем туда на систему сам бинарь и необходимые конфиги:
+3. Копируем туда на систему сам бинарь и необходимые конфиги.
+
+   Если делать вручную по новой структуре репозитория:
 
     ```bash
     scp -O tmp/AdGuardHome/AdGuardHome root@${ROUTER_ADDRESS}:${ROUTER_USB_DIR}/System/adGuardHome/usr/bin/AdGuardHome
-    scp -O -r adguard/etc root@${ROUTER_ADDRESS}:${ROUTER_USB_DIR}/System/adGuardHome
+    scp -O -r init/_System/adGuardHome/etc root@${ROUTER_ADDRESS}:${ROUTER_USB_DIR}/System/adGuardHome
     ```
+
+   Либо используем `uv run router deploy run adguard`.
 
 4. Скопировать сам скрипт запуска adguardhome (и убедитесь что в общем скрипте `/data/startup.sh` включен запуск этого скрипта):
 
     ```bash
-    scp -O adguard/startup.sh root@${ROUTER_ADDRESS}:/data/services/adguardhome.sh
+    scp -O init/data/services/adguardhome.sh root@${ROUTER_ADDRESS}:/data/services/adguardhome.sh
+    scp -O init/data/startup.sh root@${ROUTER_ADDRESS}:/data/startup.sh
     ```
 
-5. Далее конфигурируем DNS на роутере согласно [инструкции](https://openwrt.org/docs/guide-user/services/dns/adguard-home) и делаем все по шагам начиная с секции Setup и ниже. Рекомендуется сохранить бекап перед началом! Из основного:
+5. Далее конфигурируем DNS на роутере согласно [инструкции](https://openwrt.org/docs/guide-user/services/dns/adguard-home) и делаем все по шагам начиная с секции Setup и ниже. Рекомендуется сохранить бекап перед началом. Из основного:
 
     ```bash
     cd /etc/config
 
-    # Делаем локальный бекап, но лучше сохраните себе еще куда-нибудь (особенно интересуют разделы dnsmasq, dhcp 'lan', dhcp 'guest')
+    # Делаем локальный бекап, но лучше сохраните себе еще куда-нибудь
+    # (особенно интересуют разделы dnsmasq, dhcp 'lan', dhcp 'guest')
     cp dhcp dhcp.bak
 
     # Меняем сам конфиг (команды изменены, чтобы у нас все работало)
@@ -81,12 +110,8 @@
     uci -q del dhcp.lan.dhcp_option
     uci -q del dhcp.lan.dns
 
-    uci add_list dhcp.lan.dhcp_option='3,'"${NET_ADDR}"
-    uci add_list dhcp.lan.dhcp_option='6,'"${NET_ADDR}"
-
-    uci add_list dhcp.lan.dhcp_option='15,'"lan"
-
-    uci add_list dhcp.lan.dns="$NET_ADDR6"
+    uci add_list dhcp.lan.router="${NET_ADDR}"
+    uci add_list dhcp.lan.dns1="${NET_ADDR}"
     uci commit dhcp
     ```
 
@@ -119,8 +144,7 @@
 
 Все в дальнейшем настраивается через Web UI на порте **3000** (например, <http://192.168.31.1:3000>). Тут в основном рекомендации, настраивать нужно под себя.
 
-1. Во вкладке **Настройки** -> **Настройки DNS** ставим необходимые DNS сервера. Можно воспользоваться следующим примером (раскомментируйте необходимое), при этом часть DNS серверов доступно только через VPN, поэтому они ожидаемо без него не заработают (настройте доступ к ним в v2ray) -> [файл](./dns_servers.txt). Там же включаем "Параллельные запросы", чтобы было быстрее.
-
+1. Во вкладке **Настройки** -> **Настройки DNS** ставим необходимые DNS сервера. Можно воспользоваться следующим примером (раскомментируйте необходимое), при этом часть DNS серверов доступно только через VPN, поэтому они ожидаемо без него не заработают (настройте доступ к ним в v2ray) -> [файл](examples/dns_servers.txt). Там же включаем "Параллельные запросы", чтобы было быстрее.
 2. Там же прописать **Bootstrap DNS-серверы**:
 
     ```txt
@@ -133,9 +157,9 @@
 3. В одном из DNS выше прописан пример использования вашего личного DNS в AdGuard. Рекомендуется его создать. Все это можно сделать на сайте <https://adguard-dns.io/ru/dashboard/> после регистрации.
 4. Также на этой вкладке **Настройки** -> **Настройки DNS** нужно выключить обработку IPv6.
 5. Во вкладке **Фильтры** -> **Черные списки DNS** выставляем следующие фильтры:
-    - **AdGuard DNS filter**
-    - **HaGeZi's Normal Blocklist**
-    - **AdGuard DNS Popup Hosts filter**
+   - **AdGuard DNS filter**
+   - **HaGeZi's Normal Blocklist**
+   - **AdGuard DNS Popup Hosts filter**
 6. Во вкладке **Фильтры** -> **Заблокированные сервисы** выключаем нужные приложения (например, **Max**)
 7. Во вкладке **Фильтры** -> **Перезапись DNS запросов** создать имя для своего сервера, чтобы ходить на него не по IP адресу, а по "слову". Также делаем это, чтобы все сервисы были доступны по удобным DNS именам:
    1. `router.lan` -> `192.168.31.1`
@@ -145,6 +169,14 @@
    5. `v2raya.lan` -> `192.168.31.1`
    6. `v2raya` -> `v2raya.lan`
 8. Сначала в роутере (вкладка **Settings** -> **LAN Settings** -> **DHCP static IP assignment**) проставьте статику для большинства ваших устройств, а после в AdGuardHome во вкладке **Настройки** -> **Настройки клиентов** также их пропишите. Позволит вам проще видеть кто и зачем обращается.
+
+   Если хотите делать это через CLI, теперь можно точечно управлять DHCP host entries так:
+
+    ```bash
+    uv run router dhcp hosts
+    uv run router dhcp add my_device aa:bb:cc:dd:ee:ff 192.168.31.50
+    uv run router dhcp remove aa:bb:cc:dd:ee:ff --by mac
+    ```
 
 ## Обновление
 
@@ -175,10 +207,16 @@
 Можно забекапить путем сохранения файла - `${ROUTER_USB_DIR}/System/adGuardHome/adguardhome.yaml`. Скопировать себе на систему можно следующим образом:
 
 ```bash
-mkdir -p backup/etc
-scp -O root@${ROUTER_ADDRESS}:/etc/adguardhome.yaml backup/etc/adguardhome.yaml
+mkdir -p sync/etc
+scp -O root@${ROUTER_ADDRESS}:/etc/adguardhome.yaml sync/etc/adguardhome.yaml
+```
+
+Либо использовать:
+
+```bash
+uv run router sync pull adguard
 ```
 
 #### Настройки dhcp
 
-Дефолтный файл сохранен в файле `/etc/config/dhcp.bak` (если вы делали согласно этой инструкции), а также выглядит примерно как в [файле](./dhcp.bak)
+Дефолтный файл сохранен в файле `/etc/config/dhcp.bak` (если вы делали согласно этой инструкции), а также выглядит примерно как в [файле](examples/adguard_dhcp.bak)

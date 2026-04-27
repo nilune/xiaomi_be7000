@@ -7,9 +7,10 @@ xmir-patcher
 # Temporary files
 tmp/
 
-# Backups
+# Sync state
 backup/**
 backups/**
+sync/**
 
 # Python
 __pycache__/
