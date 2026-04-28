@@ -21,7 +21,6 @@
 ```text
 .
 ├── ARCHITECTURE.md
-├── DEPLOYER.md
 ├── readme.md
 ├── config.yml.example
 ├── init/
@@ -126,7 +125,6 @@
 /data/services/core.sh               -> sync/data/services/core.sh
 /data/services/adguardhome.sh        -> sync/data/services/adguardhome.sh
 /data/services/v2raya.sh             -> sync/data/services/v2raya.sh
-/data/services/filebrowser.sh        -> sync/data/services/filebrowser.sh
 /data/scripts/update_geo_files.sh    -> sync/data/scripts/update_geo_files.sh
 ```
 
@@ -152,10 +150,18 @@ ${ROUTER_USB_DIR}/System/filebrowser/database        -> sync/_System/filebrowser
 
 Общий сценарий:
 1. CLI читает `config.yml`.
-2. Выбирает включенные сервисы.
-3. Для каждого сервиса копирует стартовые файлы в `_System`.
-4. Копирует скрипты в `/data/services` и `/data/scripts`.
-5. Не трогает системные `/etc/config/dhcp|firewall|network|wireless`.
+2. Всегда выкладывает базовый `/data/startup.sh`.
+3. Выбирает включенные сервисы.
+4. Для каждого сервиса копирует стартовые файлы в `_System`.
+5. Для `adguard`, `v2raya` и `xray` сверяет желаемые версии и догружает бинарь только при несовпадении версии.
+6. Для docker-сервисов пересоздает контейнер напрямую через `docker run --restart unless-stopped`.
+7. Копирует скрипты в `/data/services` и `/data/scripts`.
+8. Не трогает системные `/etc/config/dhcp|firewall|network|wireless`.
+
+Важно:
+- `deploy run startup` выкладывает только базовый `startup.sh`
+- `deploy run base` является алиасом той же команды
+- `enabled: false` останавливает сервис, убирает его из `startup.sh` или удаляет docker-контейнер, но не удаляет данные
 
 Это позволяет безопасно автоматизировать включение сервиса, но не ломать вручную настроенный роутер.
 
@@ -186,6 +192,7 @@ CLI работает напрямую с UCI:
 ```text
 router dhcp leases
 router dhcp hosts
+router dhcp candidates
 router dhcp add <name> <mac> <ip>
 router dhcp remove <value> --by name|ip|mac|section
 ```
@@ -194,6 +201,8 @@ router dhcp remove <value> --by name|ip|mac|section
 - нет дублирования inventory
 - нет рассинхронизации между роутером и локальным yaml
 - статикой можно управлять точечно
+- можно получить список lease-записей, которые еще не закреплены статикой
+- список кандидатов можно фильтровать через `dhcp.static_candidates.exclude_macs` и `exclude_mac_prefixes` в `config.yml`
 
 ## Filebrowser
 
@@ -201,10 +210,10 @@ router dhcp remove <value> --by name|ip|mac|section
 
 Что изменено:
 - появился `init/_System/filebrowser`
-- появился `filebrowser.sh` в `/data/services`
 - конфиг и база контейнера лежат в `${ROUTER_USB_DIR}/System/filebrowser`
 - первый логин/пароль задается явно из `config.yml`
 - после первого старта пароль хранится в персистентной DB и дальше меняется уже через UI
+- `config.yml` генерирует только `container.env`, а сам контейнер поднимается deployer-ом напрямую через Docker
 
 То есть контейнер больше не является единственным местом хранения состояния.
 

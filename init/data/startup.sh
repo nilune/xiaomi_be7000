@@ -34,7 +34,6 @@ do_startup() {
     run_service "Core" "/data/services/core.sh"
     run_service "AdGuard Home" "/data/services/adguardhome.sh"
     run_service "V2rayA (with XRay)" "/data/services/v2raya.sh"
-    run_service "Filebrowser" "/data/services/filebrowser.sh"
 }
 
 # --- Run in background ---

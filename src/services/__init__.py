@@ -7,12 +7,14 @@ from connection import SSHConnection
 from services.adguard import AdGuardDeployer
 from services.core import CoreDeployer
 from services.filebrowser import FilebrowserDeployer
+from services.startup import StartupDeployer
 from services.v2raya import V2rayADeployer
 
 SERVICE_DEPLOYERS = {
     "adguard": AdGuardDeployer,
     "core": CoreDeployer,
     "filebrowser": FilebrowserDeployer,
+    "startup": StartupDeployer,
     "v2raya": V2rayADeployer,
 }
 

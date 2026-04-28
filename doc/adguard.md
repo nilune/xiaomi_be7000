@@ -38,6 +38,7 @@ uv run router sync push adguard
 Что делает автоматизация:
 - деплоит стартовые файлы из `init/_System/adGuardHome`
 - копирует скрипт `init/data/services/adguardhome.sh`
+- скачивает бинарь `AdGuardHome` нужной версии, если на роутере его еще нет или версия отличается
 - синхронизирует service-specific файлы через `sync/`
 
 Что она не делает:
@@ -51,7 +52,18 @@ uv run router sync push adguard
 
 Сделано на основе инструкции из [тг](https://t.me/xiaomi_be7000/12423) (от @T7m):
 
-1. Скачать пакет `adguardhome` с <https://github.com/AdguardTeam/AdGuardHome/releases>:
+1. Указать версию в `config.yml`:
+
+    ```yaml
+    services:
+      adguard:
+        enabled: true
+        version: 0.107.74
+    ```
+
+   После этого `uv run router deploy run adguard` сам скачает и выложит нужный бинарь `AdGuardHome`.
+
+   Если хотите сделать это вручную, тогда можно скачать пакет с <https://github.com/AdguardTeam/AdGuardHome/releases>:
 
     ```bash
     export ADGUARDHOME_VERSION=0.107.73

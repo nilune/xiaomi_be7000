@@ -55,7 +55,15 @@ class SSHConnection:
         ]
 
         if self.password:
-            return ["sshpass", "-p", self.password, "ssh", *ssh_options, f"{self.user}@{self.host}", command]
+            return [
+                "sshpass",
+                "-p",
+                self.password,
+                "ssh",
+                *ssh_options,
+                f"{self.user}@{self.host}",
+                command,
+            ]
         return ["ssh", *ssh_options, f"{self.user}@{self.host}", command]
 
     def _build_scp_cmd(self, local: str, remote: str, upload: bool = True) -> list[str]:

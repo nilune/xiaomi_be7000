@@ -1,8 +1,8 @@
 # XIAOMI BE7000
 
-Инструкция по подготовке роутера для работы с различными компонентами (`v2raya`, `adguardhome`, прочее).
+Практическая инструкция по подготовке роутера Xiaomi BE7000 и управлению его сервисами.
 
-> Все команды подразумевается запускать либо с роутера, либо из этой директории.
+> Все команды ниже запускайте либо на роутере, либо из корня этого репозитория.
 
 В документации используются общие переменные (поменяйте их согласно вашим настройкам):
 
@@ -146,11 +146,11 @@ export ROUTER_USB_DIR=/mnt/usb-ef8d1024
    2. Скопировать в нее скрипт `startup.sh`:
 
       ```bash
-      scp -O init/data/startup.sh root@${ROUTER_ADDRESS}:/data/startup.sh
+      uv run router deploy run startup
       ```
 
-   3. Включить / выключить в этом скрипте необходимые компоненты (с помощью комментариев в функции `do_startup`)
-   4. Проставить в скрипте актуальный путь до вашего внешнего устройства (переменная `USB_DIR`)
+   3. При необходимости поправить `USB_DIR` в `init/data/startup.sh` под ваш путь к внешнему накопителю
+   4. При необходимости включить или отключить отдельные вызовы в функции `do_startup`
    5. Также создать директорию `scripts` для дополнительных скриптов:
 
       ```bash
@@ -166,7 +166,7 @@ export ROUTER_USB_DIR=/mnt/usb-ef8d1024
         option enabled '1'
     ```
 
-4. Далее идем в интересуемые вас документы и настраиваете сервисы согласно описанию:
+4. Дальше переходите к нужному сервису и настраивайте его по профильной инструкции:
    1. [Core](doc/core.md) - специальная настройка для кастомизации системных настроек
    2. [AdGuard Home](doc/adguard.md) - настройка DNS через AdGuardHome
    3. [V2rayA](doc/v2raya.md) - настройка прокси через V2rayA и Xray
@@ -174,10 +174,12 @@ export ROUTER_USB_DIR=/mnt/usb-ef8d1024
 
 ## Автоматизация (Deployer)
 
-Утилита для управления конфигурацией роутера через CLI. Теперь она позволяет:
+CLI-утилита для управления конфигурацией роутера:
 - управлять статическими IP адресами напрямую через `/etc/config/dhcp`
+- показывать кандидатов на перевод в статику по текущим DHCP lease-записям
 - синхронизировать конфигурации между роутером и локальной директорией `sync/`
-- деплоить стартовые файлы сервисов из `init/`
+- деплоить базовый `startup.sh` и файлы сервисов из `init/`
+- скачивать и обновлять версии бинарей `adguard`, `v2raya` и `xray` по `config.yml`
 
 ### Установка
 
@@ -198,6 +200,7 @@ uv run router config show
 # DHCP и статические IP
 uv run router dhcp leases                  # Текущие аренды
 uv run router dhcp hosts                   # Текущие статические хосты
+uv run router dhcp candidates              # Кто еще не закреплен статикой
 uv run router dhcp add my_device aa:bb:cc:dd:ee:ff 192.168.31.80
 uv run router dhcp remove aa:bb:cc:dd:ee:ff --by mac
 
@@ -210,6 +213,8 @@ uv run router sync push v2raya
 # Deploy
 uv run router deploy run --dry-run
 uv run router deploy run
+uv run router deploy run startup
+uv run router deploy run base              # Алиас для startup
 uv run router deploy run adguard
 uv run router deploy run filebrowser
 ```
@@ -217,10 +222,32 @@ uv run router deploy run filebrowser
 Что важно понимать:
 - `sync/` не коммитится и отражает фактическое состояние роутера
 - `init/` хранит стартовые файлы для первоначального включения сервисов
+- `uv run router deploy run` без аргументов сначала выкладывает `startup.sh`, затем все сервисы с `enabled: true` в `config.yml`
+- `enabled: false` теперь приводит к реальному отключению сервиса без удаления его данных
 - изменения в системных `/etc/config/*` все еще предполагают ручной контроль
 - `filebrowser` теперь хранит базу и конфиг в `${ROUTER_USB_DIR}/System/filebrowser`, а не только внутри контейнера
+- docker-сервисы не запускаются из `startup.sh`: они поднимаются напрямую через `docker run --restart unless-stopped`
+- `filebrowser` в текущей схеме запускается с `--user 0:0`, потому что встроенный пользователь image не смог писать в bind-mounted каталог базы на роутере
 
-Подробнее см. [DEPLOYER.md](DEPLOYER.md) и [ARCHITECTURE.md](ARCHITECTURE.md).
+Минимальный пример версий в `config.yml`:
+
+```yaml
+services:
+  adguard:
+    enabled: true
+    version: 0.107.74
+
+  v2raya:
+    enabled: true
+    version: 2.2.7.5
+    xray_version: 26.4.15
+
+  filebrowser:
+    enabled: true
+    version: latest
+```
+
+Подробнее о внутреннем устройстве см. в [ARCHITECTURE.md](ARCHITECTURE.md).
 
 ## Полезное
 
@@ -324,6 +351,7 @@ TODO: доступ через firewall с определенных адресо�
 
 Статические IP адреса теперь настраиваются либо:
 - точечно через `router dhcp add/remove`
+- через просмотр кандидатов командой `router dhcp candidates`
 - вручную через UCI на роутере
 - либо через ручное редактирование `sync/etc/config/dhcp` с последующим `sync push`
 
@@ -331,8 +359,20 @@ TODO: доступ через firewall с определенных адресо�
 
 ```bash
 uv run router dhcp hosts
+uv run router dhcp candidates
 uv run router dhcp add my_device aa:bb:cc:dd:ee:ff 192.168.1.100
 uv run router dhcp remove my_device --by name
+```
+
+Если какие-то устройства не должны попадать в список кандидатов, добавьте исключения в `config.yml`:
+
+```yaml
+dhcp:
+  static_candidates:
+    exclude_macs:
+      - "aa:bb:cc:dd:ee:ff"
+    exclude_mac_prefixes:
+      - "ec:fa:bc"
 ```
 
 Если хотите работать через pull/push модель:

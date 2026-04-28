@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 import subprocess
-from typing import Iterable
+from collections.abc import Iterable
+from pathlib import Path
 
 import click
 from rich.console import Console
@@ -12,10 +13,11 @@ from rich.table import Table
 from config import Config, get_config
 from connection import SSHConnection
 from services import SERVICE_DEPLOYERS, get_service_deployer
-from sync import SyncManager, SYSTEM_CONFIGS
+from sync import SyncManager
 from uci.dhcp import DHCPHandler
 
 console = Console()
+SERVICE_ALIASES = {"base": "startup"}
 
 
 def require_config() -> Config:
@@ -140,6 +142,30 @@ def dhcp_hosts() -> None:
     console.print(table)
 
 
+@dhcp.command("candidates")
+def dhcp_candidates() -> None:
+    """Show lease entries that are not yet pinned as static hosts."""
+    config = require_config()
+    conn = require_connection(config)
+    handler = DHCPHandler(config)
+    candidates = handler.list_static_candidates(conn)
+
+    if not candidates:
+        console.print("[yellow]No static-IP candidates found.[/yellow]")
+        return
+
+    table = Table(title="Static IP Candidates")
+    table.add_column("MAC", style="cyan")
+    table.add_column("IP", style="green")
+    table.add_column("Hostname", style="yellow")
+    table.add_column("Reason", style="dim")
+
+    for host in candidates:
+        table.add_row(host["mac"], host["ip"], host["name"], host["reason"])
+
+    console.print(table)
+
+
 @dhcp.command("add")
 @click.argument("name")
 @click.argument("mac")
@@ -242,7 +268,11 @@ def push_cmd(target: str, dry_run: bool) -> None:
 
     if dry_run:
         for remote_path in remote_paths:
-            console.print(f"{manager.local_path_for_remote(remote_path)} -> {remote_path}")
+            local_path = _display_repo_relative_path(
+                manager.config.repo_root,
+                manager.local_path_for_remote(remote_path),
+            )
+            console.print(f"{local_path} -> {remote_path}")
         return
 
     conn = require_connection(config)
@@ -261,41 +291,42 @@ def deploy() -> None:
 def deploy_run(service: str | None, dry_run: bool) -> None:
     """Deploy one enabled service or all enabled services."""
     config = require_config()
-
     if service:
-        services = [service]
-    else:
-        services = [name for name, cfg in config.services.items() if cfg.get("enabled", False)]
+        requested_service = SERVICE_ALIASES.get(service, service)
+        if requested_service not in SERVICE_DEPLOYERS:
+            known = ", ".join(sorted(SERVICE_DEPLOYERS))
+            console.print(f"[red]Unknown service: {requested_service}[/red]")
+            console.print(f"[yellow]Known services: {known}[/yellow]")
+            raise SystemExit(1)
 
-    if not services:
-        console.print("[yellow]No enabled services found in config.yml.[/yellow]")
+        conn = require_connection(config) if not dry_run else SSHConnection(
+            config.router_address,
+            config.router_user,
+        )
+        _deploy_one_service(requested_service, config, conn, dry_run=dry_run)
         return
 
-    unknown_services = [name for name in services if name not in SERVICE_DEPLOYERS]
-    if unknown_services:
-        known = ", ".join(sorted(SERVICE_DEPLOYERS))
-        console.print(f"[red]Unknown services: {', '.join(unknown_services)}[/red]")
-        console.print(f"[yellow]Known services: {known}[/yellow]")
-        raise SystemExit(1)
+    conn = require_connection(config) if not dry_run else SSHConnection(
+        config.router_address,
+        config.router_user,
+    )
 
-    for svc in services:
-        if dry_run:
-            console.print(f"\n[yellow]{svc}[/yellow]")
-        else:
-            console.print(f"\n[blue]Deploying {svc}...[/blue]")
+    _deploy_one_service("startup", config, conn, dry_run=dry_run)
 
-        try:
-            conn = require_connection(config) if not dry_run else SSHConnection(
-                config.router_address,
-                config.router_user,
-            )
-            deployer = get_service_deployer(svc, config, conn)
-            deployer.deploy(dry_run=dry_run)
-            if not dry_run:
-                console.print(f"[green]✓ Deployed {svc}[/green]")
-        except Exception as exc:
-            console.print(f"[red]Failed to deploy {svc}: {exc}[/red]")
-            raise SystemExit(1) from exc
+    enabled_services = [name for name, cfg in config.services.items() if cfg.get("enabled", False)]
+    disabled_services = [
+        name for name in SERVICE_DEPLOYERS if name not in {"startup", *enabled_services}
+    ]
+
+    if not enabled_services and not disabled_services:
+        console.print("[yellow]No managed services found in config.yml.[/yellow]")
+        return
+
+    for svc in enabled_services:
+        _deploy_one_service(svc, config, conn, dry_run=dry_run)
+
+    for svc in disabled_services:
+        _disable_one_service(svc, config, conn, dry_run=dry_run)
 
 
 @main.group()
@@ -322,6 +353,53 @@ def exec_cmd(command: str, show_stderr: bool) -> None:
             console.print(proc.stderr.strip())
 
 
+def _deploy_one_service(
+    service_name: str,
+    config: Config,
+    conn: SSHConnection,
+    *,
+    dry_run: bool,
+) -> None:
+    """Deploy one service with consistent output."""
+    if dry_run:
+        console.print(f"\n[yellow]{service_name}[/yellow]")
+    else:
+        console.print(f"\n[blue]Deploying {service_name}...[/blue]")
+
+    try:
+        deployer = get_service_deployer(service_name, config, conn)
+        deployer.deploy(dry_run=dry_run)
+        if not dry_run:
+            console.print(f"[green]✓ Deployed {service_name}[/green]")
+    except Exception as exc:
+        console.print(f"[red]Failed to deploy {service_name}: {exc}[/red]")
+        raise SystemExit(1) from exc
+
+
+def _disable_one_service(
+    service_name: str,
+    config: Config,
+    conn: SSHConnection,
+    *,
+    dry_run: bool,
+) -> None:
+    """Disable one service without deleting its data."""
+    deployer = get_service_deployer(service_name, config, conn)
+    if dry_run:
+        console.print(f"\n[dim]{service_name} (disabled in config.yml)[/dim]")
+        for action in deployer.preview_disable():
+            console.print(f"  [dim]- {action}[/dim]")
+        return
+
+    console.print(f"\n[blue]Disabling {service_name}...[/blue]")
+    try:
+        deployer.disable()
+        console.print(f"[green]✓ Disabled {service_name}[/green]")
+    except Exception as exc:
+        console.print(f"[red]Failed to disable {service_name}: {exc}[/red]")
+        raise SystemExit(1) from exc
+
+
 def _print_sync_results(
     manager: SyncManager,
     results: Iterable[tuple[str, bool]],
@@ -331,11 +409,22 @@ def _print_sync_results(
     """Render sync pull/push results consistently."""
     for remote_path, success in results:
         status = "[green]✓[/green]" if success else "[yellow]-[/yellow]"
-        local_path = manager.local_path_for_remote(remote_path)
+        local_path = _display_repo_relative_path(
+            manager.config.repo_root,
+            manager.local_path_for_remote(remote_path),
+        )
         if reverse:
             console.print(f"{status} {local_path} -> {remote_path}")
         else:
             console.print(f"{status} {remote_path} -> {local_path}")
+
+
+def _display_repo_relative_path(repo_root: Path, path: Path) -> Path | str:
+    """Render a path relative to the repository root when possible."""
+    try:
+        return path.relative_to(repo_root)
+    except ValueError:
+        return path
 
 
 if __name__ == "__main__":

@@ -85,6 +85,29 @@ class Config:
         """Get service-specific configuration from config.yml."""
         return self.services.get(service_name, {})
 
+    @property
+    def dhcp_config(self) -> dict[str, Any]:
+        """DHCP-related config from config.yml."""
+        return self._config.get("dhcp", {})
+
+    @property
+    def excluded_static_candidate_macs(self) -> list[str]:
+        """Exact MAC addresses excluded from static-IP candidate list."""
+        values = self.dhcp_config.get("static_candidates", {}).get("exclude_macs", [])
+        return [str(value).strip().lower() for value in values if str(value).strip()]
+
+    @property
+    def excluded_static_candidate_prefixes(self) -> list[str]:
+        """MAC prefixes excluded from static-IP candidate list."""
+        values = self.dhcp_config.get("static_candidates", {}).get("exclude_mac_prefixes", [])
+        normalized: list[str] = []
+        for value in values:
+            prefix = str(value).strip().lower()
+            if not prefix:
+                continue
+            normalized.append(prefix.rstrip(":"))
+        return normalized
+
     def is_service_enabled(self, service_name: str) -> bool:
         """Check if a service is enabled."""
         return bool(self.get_service_config(service_name).get("enabled", False))
@@ -108,6 +131,22 @@ class Config:
                 issues.append("services.filebrowser.initial_username must not be empty")
             if not str(filebrowser_cfg.get("initial_password", "")).strip():
                 issues.append("services.filebrowser.initial_password must not be empty")
+
+        for service_name, key in (
+            ("adguard", "version"),
+            ("v2raya", "version"),
+            ("v2raya", "xray_version"),
+            ("filebrowser", "version"),
+        ):
+            value = str(self.get_service_config(service_name).get(key, "")).strip()
+            if value == "":
+                issues.append(f"services.{service_name}.{key} must not be empty")
+
+        static_candidates = self.dhcp_config.get("static_candidates", {})
+        for key in ("exclude_macs", "exclude_mac_prefixes"):
+            value = static_candidates.get(key, [])
+            if not isinstance(value, list):
+                issues.append(f"dhcp.static_candidates.{key} must be a list")
 
         return issues
 

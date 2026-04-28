@@ -41,6 +41,35 @@ class DHCPHandler(UCIConfigHandler):
 
         return sorted(hosts, key=lambda item: (item["name"], item["section"]))
 
+    def list_static_candidates(self, conn: SSHConnection) -> list[dict[str, str]]:
+        """Return DHCP leases that are not yet covered by static hosts."""
+        static_hosts = self.list_static_hosts(conn)
+        leased_hosts = self._read_leases(conn)
+        excluded_macs = set(self.config.excluded_static_candidate_macs)
+        excluded_prefixes = tuple(self.config.excluded_static_candidate_prefixes)
+        candidates: list[dict[str, str]] = []
+
+        for lease in leased_hosts:
+            mac = lease["mac"].lower()
+
+            if mac in excluded_macs or any(mac.startswith(prefix) for prefix in excluded_prefixes):
+                continue
+
+            reason = self._candidate_reason(static_hosts, lease)
+            if reason is None:
+                continue
+
+            candidates.append(
+                {
+                    "mac": lease["mac"],
+                    "ip": lease["ip"],
+                    "name": lease["name"],
+                    "reason": reason,
+                }
+            )
+
+        return sorted(candidates, key=lambda item: (item["name"], item["ip"], item["mac"]))
+
     def find_hosts(self, conn: SSHConnection, value: str, by: str = "any") -> list[dict[str, str]]:
         """Find static hosts by name, ip, mac, or any field."""
         normalized = value.strip().lower()
@@ -79,7 +108,11 @@ class DHCPHandler(UCIConfigHandler):
         matches = []
         current_hosts = self.list_static_hosts(conn)
         for host in current_hosts:
-            if host["name"].lower() == name.lower() or host["mac"].lower() == mac.lower() or host["ip"] == ip:
+            if (
+                host["name"].lower() == name.lower()
+                or host["mac"].lower() == mac.lower()
+                or host["ip"] == ip
+            ):
                 matches.append(host)
 
         if matches and not replace:
@@ -130,3 +163,52 @@ class DHCPHandler(UCIConfigHandler):
         """Convert arbitrary host name into a safe UCI section name."""
         section_name = re.sub(r"[^a-zA-Z0-9_]+", "_", name.strip().lower()).strip("_")
         return section_name or "static_host"
+
+    def _read_leases(self, conn: SSHConnection) -> list[dict[str, str]]:
+        """Parse current DHCP leases from /tmp/dhcp.leases."""
+        content = conn.read_file("/tmp/dhcp.leases")
+        leases = []
+        for line in content.strip().splitlines():
+            parts = line.split()
+            if len(parts) < 4:
+                continue
+            leases.append(
+                {
+                    "lease": parts[0],
+                    "mac": parts[1].lower(),
+                    "ip": parts[2],
+                    "name": parts[3],
+                }
+            )
+        return leases
+
+    @staticmethod
+    def _candidate_reason(static_hosts: list[dict[str, str]], lease: dict[str, str]) -> str | None:
+        """Classify whether a lease should be shown as a candidate."""
+        exact_match = next(
+            (
+                host
+                for host in static_hosts
+                if host["mac"].lower() == lease["mac"].lower() and host["ip"] == lease["ip"]
+            ),
+            None,
+        )
+        if exact_match is not None:
+            return None
+
+        same_mac = [host for host in static_hosts if host["mac"].lower() == lease["mac"].lower()]
+        if same_mac:
+            return "Static IP differs"
+
+        same_ip = [host for host in static_hosts if host["ip"] == lease["ip"]]
+        if same_ip:
+            return "IP already pinned"
+
+        if lease["name"] and lease["name"] != "*":
+            same_name = [
+                host for host in static_hosts if host["name"].lower() == lease["name"].lower()
+            ]
+            if same_name:
+                return "Hostname differs"
+
+        return "Lease only"

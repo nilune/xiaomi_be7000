@@ -21,9 +21,8 @@ uv run router sync push filebrowser
 - `init/_System/filebrowser/etc/nginx/conf.d/filebrowser.conf`
 - `${ROUTER_USB_DIR}/System/filebrowser/config`
 - `${ROUTER_USB_DIR}/System/filebrowser/database`
-- `/data/services/filebrowser.sh`
 
-То есть конфиг, база и стартовый скрипт становятся перманентными, а не живут только внутри контейнера.
+То есть конфиг и база становятся постоянной частью настройки, а контейнер пересоздается deployer-ом напрямую через Docker.
 
 ## Установка
 
@@ -33,6 +32,7 @@ uv run router sync push filebrowser
 services:
   filebrowser:
     enabled: true
+    version: latest
     port: 8088
     initial_username: admin
     initial_password: admin
@@ -51,18 +51,27 @@ services:
 uv run router deploy run filebrowser
 ```
 
-На первом запуске будет создан пользователь с логином `admin` и паролем `admin`, если база еще не существует. После этого пароль нужно сразу сменить через UI. Дальше он уже хранится в персистентной базе `${ROUTER_USB_DIR}/System/filebrowser/database/filebrowser.db`.
+На первом запуске будет создан пользователь с логином `admin` и паролем `admin`, если база еще не существует. После этого пароль нужно сразу сменить через UI. Дальше он уже хранится в `${ROUTER_USB_DIR}/System/filebrowser/database/filebrowser.db`.
+
+Контейнер не запускается через `/data/startup.sh`. Deployer:
+- генерирует `${ROUTER_USB_DIR}/System/filebrowser/config/container.env`
+- при необходимости подтягивает image `filebrowser/filebrowser:<version>`
+- пересоздает контейнер `filebrowser` c `--restart unless-stopped`
 
 ### 3. Ручной запуск через Docker
 
 ```bash
 ${ROUTER_USB_DIR}/mi_docker/docker-binaries/docker run -d \
   --name filebrowser \
-  -p 8088:80 \
+  --user 0:0 \
+  --restart unless-stopped \
+  --env-file ${ROUTER_USB_DIR}/System/filebrowser/config/container.env \
+  -v ${ROUTER_USB_DIR}/System/filebrowser/config:/config \
+  -p 8088:8088 \
+  -v ${ROUTER_USB_DIR}/System/filebrowser/database:/database \
   -v /etc/config:/srv/etc_config \
   -v /mnt:/srv/mnt \
   -v /data:/srv/data \
-  --restart unless-stopped \
   filebrowser/filebrowser:latest
 ```
 
@@ -95,6 +104,7 @@ http://${ROUTER_ADDRESS}:8088
 ### Порты
 
 - `port` - порт веб-интерфейса (по умолчанию 8088)
+- `version` - docker tag для `filebrowser/filebrowser`
 
 ### Персистентные данные
 
@@ -103,6 +113,8 @@ http://${ROUTER_ADDRESS}:8088
 - `${ROUTER_USB_DIR}/System/filebrowser/etc/nginx/conf.d/filebrowser.conf` - nginx proxy config
 
 Это же участвует в `sync pull/push`.
+
+На текущем роутере контейнер приходится запускать с `--user 0:0`, потому что дефолтный пользователь образа не смог писать в bind-mounted `${ROUTER_USB_DIR}/System/filebrowser/database`. Это уже проверено живым деплоем.
 
 ## Полезные команды
 

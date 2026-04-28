@@ -49,7 +49,6 @@ class SyncManager:
                 f"{system_dir}/filebrowser/etc",
                 f"{system_dir}/filebrowser/config",
                 f"{system_dir}/filebrowser/database",
-                "/data/services/filebrowser.sh",
             ],
         }
 
@@ -85,7 +84,12 @@ class SyncManager:
             results.append((remote_path, success))
         return results
 
-    def push(self, conn: SSHConnection, target: str, dry_run: bool = False) -> list[tuple[str, bool]]:
+    def push(
+        self,
+        conn: SSHConnection,
+        target: str,
+        dry_run: bool = False,
+    ) -> list[tuple[str, bool]]:
         """Push a target from ./sync back to the router."""
         results = []
         for remote_path in self.describe_target(target):

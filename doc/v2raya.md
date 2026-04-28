@@ -39,6 +39,7 @@ uv run router sync push v2raya
 - деплоит стартовые файлы из `init/_System/v2raya`
 - копирует `init/data/services/v2raya.sh`
 - копирует `init/data/scripts/update_geo_files.sh`
+- скачивает бинарные версии `v2raya` и `xray`, если на роутере их еще нет или версия отличается
 - синхронизирует service-specific и runtime-конфиги через `sync/`
 
 Что она не делает:
@@ -52,7 +53,19 @@ uv run router sync push v2raya
 - [тг](https://t.me/xiaomi_be7000/1464/16668) от @T7m ([ссылка на github](https://github.com/Tesla777m/xiaomi_native_v2rinst))
 - [тг](https://t.me/xiaomi_be7000/1464/16868) от @Frogost
 
-1. Скачать пакет `xray` с <https://github.com/xtls/xray-core/releases> и `v2raya` с <https://github.com/v2rayA/v2rayA/releases>:
+1. Указать версии в `config.yml`:
+
+    ```yaml
+    services:
+      v2raya:
+        enabled: true
+        version: 2.2.7.5
+        xray_version: 26.4.15
+    ```
+
+   После этого `uv run router deploy run v2raya` сам скачает и выложит нужные бинарники.
+
+   Если хотите сделать это вручную, тогда можно скачать пакет `xray` с <https://github.com/xtls/xray-core/releases> и `v2raya` с <https://github.com/v2rayA/v2rayA/releases>:
 
     ```bash
     # TODO: Установка v2raya через `"https://github.com/v2rayA/v2rayA/releases/download/v${V2RAYA_VERSION}/v2raya_linux_arm64_${V2RAYA_VERSION}"` не работает
