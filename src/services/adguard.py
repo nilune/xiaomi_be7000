@@ -4,8 +4,12 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from rich.console import Console
+
 from services.base import ServiceDeployer
 from services.downloads import download_file, extract_tar_member
+
+console = Console()
 
 
 class AdGuardDeployer(ServiceDeployer):
@@ -52,8 +56,13 @@ class AdGuardDeployer(ServiceDeployer):
         self._upload_binary_if_needed()
 
     def _post_deploy(self) -> None:
-        """Enable AdGuard Home service."""
+        """Enable AdGuard Home service and reload nginx."""
         self.conn.run("/etc/init.d/adguardhome enable", check=False)
+        # Validate and reload nginx to apply the proxy config
+        if not self._validate_nginx_config():
+            console.print("[yellow]Warning: nginx configuration validation failed[/yellow]")
+        else:
+            self._reload_nginx()
 
     def disable(self) -> None:
         """Stop AdGuard Home without deleting its files."""

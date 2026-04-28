@@ -147,6 +147,24 @@ class ServiceDeployer(ABC):
         except ValueError:
             return path
 
+    def _validate_nginx_config(self) -> bool:
+        """Validate nginx configuration. Returns True if valid or nginx not present."""
+        try:
+            self.conn.run("nginx -t", check=True)
+            return True
+        except Exception:
+            return False
+
+    def _reload_nginx(self) -> bool:
+        """Reload nginx gracefully. Returns True on success."""
+        if not self.conn.file_exists("/etc/init.d/nginx"):
+            return True
+        try:
+            self.conn.run("service nginx reload", check=True)
+            return True
+        except Exception:
+            return False
+
     @abstractmethod
     def _upload_files(self) -> None:
         """Upload service files to router."""

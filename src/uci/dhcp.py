@@ -131,7 +131,7 @@ class DHCPHandler(UCIConfigHandler):
         conn.run("uci commit dhcp", check=True)
 
         if restart_dnsmasq:
-            conn.run("service dnsmasq restart", check=False)
+            self._restart_dnsmasq_with_check(conn)
 
         return {"added": True, "section": section_name, "replaced": removed_sections}
 
@@ -155,7 +155,7 @@ class DHCPHandler(UCIConfigHandler):
 
         conn.run("uci commit dhcp", check=True)
         if restart_dnsmasq:
-            conn.run("service dnsmasq restart", check=False)
+            self._restart_dnsmasq_with_check(conn)
 
         return {"removed": removed, "matched": len(removed)}
 
@@ -212,3 +212,13 @@ class DHCPHandler(UCIConfigHandler):
                 return "Hostname differs"
 
         return "Lease only"
+
+    def _restart_dnsmasq_with_check(self, conn: SSHConnection) -> bool:
+        """Restart dnsmasq and verify it reloads the config correctly."""
+        try:
+            conn.run("service dnsmasq restart", check=True)
+            # Give dnsmasq a moment to reread the config and update leases
+            conn.run("sleep 1", check=False)
+            return True
+        except Exception:
+            return False

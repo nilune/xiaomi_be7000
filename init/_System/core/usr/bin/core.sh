@@ -1,6 +1,8 @@
 #!/bin/sh
 
 sleep 30
+
+# Reload nginx service on every start
 /etc/init.d/nginx reload
 
 # Set smaller limits for udp traffic

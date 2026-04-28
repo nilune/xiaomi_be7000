@@ -6,7 +6,11 @@ from pathlib import Path
 from textwrap import dedent
 from typing import Any
 
+from rich.console import Console
+
 from services.docker import DockerServiceDeployer
+
+console = Console()
 
 
 class FilebrowserDeployer(DockerServiceDeployer):
@@ -38,6 +42,11 @@ class FilebrowserDeployer(DockerServiceDeployer):
         self._prepare_runtime_dirs()
         self.disable()
         self.conn.run(self._render_docker_run_command(), check=True, timeout=300)
+        # Validate and reload nginx to apply the proxy config
+        if not self._validate_nginx_config():
+            console.print("[yellow]Warning: nginx configuration validation failed[/yellow]")
+        else:
+            self._reload_nginx()
 
     def _upload_generated_nginx_config(self) -> None:
         """Generate and upload the nginx proxy config."""

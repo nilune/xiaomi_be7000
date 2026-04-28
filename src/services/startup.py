@@ -34,8 +34,19 @@ class StartupDeployer(ServiceDeployer):
         self.conn.run("chmod +x /data/startup.sh", check=False)
 
     def _render_startup_script(self) -> str:
-        """Render startup.sh with enabled native services uncommented."""
+        """Render startup.sh with config values and enabled services."""
         content = self.startup_source_path.read_text(encoding="utf-8")
+
+        # Substitute USB_DIR and SYSTEM_DIR from config
+        usb_dir = self.config.router_usb_dir
+        system_dir = f"{usb_dir}/System"
+        old_usb = 'export USB_DIR="/mnt/usb-ef8d1024"'
+        new_usb = f'export USB_DIR="{usb_dir}"'
+        content = content.replace(old_usb, new_usb)
+
+        old_system = 'export SYSTEM_DIR="${USB_DIR}/System"'
+        new_system = f'export SYSTEM_DIR="{system_dir}"'
+        content = content.replace(old_system, new_system)
 
         from services import get_service_deployer
 
