@@ -122,8 +122,12 @@ uv run router sync push adguard
     uci -q del dhcp.lan.dhcp_option
     uci -q del dhcp.lan.dns
 
-    uci add_list dhcp.lan.router="${NET_ADDR}"
-    uci add_list dhcp.lan.dns1="${NET_ADDR}"
+    #uci set dhcp.lan.router="${NET_ADDR}"
+    #uci set dhcp.lan.dns1="${NET_ADDR}"
+    uci add_list dhcp.lan.dhcp_option='3,'"${NET_ADDR}"
+    uci add_list dhcp.lan.dhcp_option='6,'"${NET_ADDR}"
+    uci add_list dhcp.lan.dhcp_option='15,'"lan"
+    uci add_list dhcp.lan.dns="$NET_ADDR6"
     uci commit dhcp
     ```
 

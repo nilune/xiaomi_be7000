@@ -39,7 +39,7 @@ class SSHConnection:
         self.user = user
         self.password = password or get_ssh_password()
 
-    def _build_ssh_cmd(self, command: str, timeout: int = 30) -> list[str]:
+    def _build_ssh_cmd(self, command: str) -> list[str]:
         """Build SSH command with optional password."""
         ssh_options = [
             "-o",
@@ -97,7 +97,7 @@ class SSHConnection:
 
     def run(self, command: str, timeout: int = 30, check: bool = True) -> str:
         """Run command on router and return stdout."""
-        cmd = self._build_ssh_cmd(command, timeout)
+        cmd = self._build_ssh_cmd(command)
 
         try:
             result = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)

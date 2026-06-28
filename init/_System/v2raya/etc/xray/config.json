@@ -3,9 +3,9 @@
   "dns": {
     "queryStrategy": "UseIPv4",
     "servers": [
-      {"address": "77.88.8.8"},
-      {"address": "https://77.88.8.8/dns-query", "skipFallback": false},
-      {"address": "https://77.88.8.1/dns-query", "skipFallback": false}
+      {"address": "https://77.88.8.8/dns-query", "skipFallback": true},
+      "77.88.8.8",
+      "localhost"
     ]
   },
   "log": {

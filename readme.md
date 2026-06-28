@@ -24,6 +24,7 @@ export ROUTER_USB_DIR=/mnt/usb-ef8d1024
   - [Настройка статических адресов](#настройка-статических-адресов)
 - [Важные файлы и полезные команды](#важные-файлы-и-полезные-команды)
 - [Задачи](#задачи)
+- [Дополнительно](#дополнительно)
 
 ## Структура репозитория
 
@@ -267,6 +268,8 @@ services:
 
 ### Донастройка IoT сети
 
+> Неактуально. Оно протестировано, но работает не супер с устройствами Matter Over Wifi.
+
 По дефолту IoT сеть находится в LAN и в ней все равно нельзя настраивать статические адреса, поэтому появилось желание перенести эту сеть в уже созданную отдельную `miot` сеть на адресах `192.168.32.*` и как внутри прописать статику:
 1. Включаем в приложении Xiaomi саму IoT сеть
 2. В файле `/etc/config/wireless` ставим следующие опции в соответствующем разделе:
@@ -345,8 +348,6 @@ services:
         option bridge_empty '1'
     ```
 
-TODO: доступ через firewall с определенных адресов к samba на роутере или в целом ко всему
-
 ### Настройка статических адресов
 
 Статические IP адреса теперь настраиваются либо:
@@ -417,3 +418,24 @@ service dnsmasq restart
 - [ ] https://post.smzdm.com/p/akk9nvv8/ - home assistant и прочее
 - [ ] подготовить готовые скрипты создания бекапа и восстановления из него
 - [ ] улучшить все конфиги с помощью ИИ агента, сделать автоматизацию раскатки
+
+
+## Дополнительно
+
+```
+for name in xray v2raya AdGuardHome; do
+    pid=$(pgrep $name)
+    [ -n "$pid" ] && echo "=== $name (PID $pid) ===" && \
+    cat /proc/$pid/status | grep -E 'VmRSS|VmSize'
+done
+```
+
+watch -n2 'echo "=== MEM ===" && fre
+e -m | grep Mem && echo "=== CONNTRACK ===" && cat /proc/sys/net/netfilter/nf_conntrack_count
+ && echo "=== CONNTRACK TOP ===" && cat /proc/net/nf_conntrack | awk "{print \$7,\$8,\$9,\$10
+}" | sort | uniq -c | sort -rn | head -20'
+
+for ip in 119.29.29.29 77.88.8.8 77.88.8.1 208.67.220.220; do
+    iptables -t mangle -I TP_PRE 1 -p udp -s $ip --sport 53 -j RETURN
+    iptables -t mangle -I TP_PRE 1 -p tcp -s $ip --sport 53 -j RETURN
+done
