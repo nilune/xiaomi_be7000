@@ -1,0 +1,171 @@
+"""Configuration loading and management."""
+
+from __future__ import annotations
+
+from pathlib import Path
+from typing import Any
+
+import yaml
+
+
+class ConfigError(Exception):
+    """Configuration error."""
+
+
+class Config:
+    """Main configuration manager."""
+
+    def __init__(self, repo_root: Path | None = None):
+        self.repo_root = repo_root or self._find_repo_root()
+        self._config_path = self.repo_root / "config.yml"
+        self._init_dir = self.repo_root / "init"
+        self._sync_dir = self.repo_root / "sync"
+        self._config: dict[str, Any] = {}
+        self._loaded = False
+
+    @staticmethod
+    def _find_repo_root() -> Path:
+        """Find repository root by looking for config.yml or pyproject.toml."""
+        current = Path.cwd()
+        for parent in [current] + list(current.parents):
+            if (parent / "config.yml").exists() or (parent / "pyproject.toml").exists():
+                return parent
+        return current
+
+    def load(self) -> None:
+        """Load configuration file."""
+        if not self._config_path.exists():
+            raise ConfigError(f"Config file not found: {self._config_path}")
+
+        with open(self._config_path, encoding="utf-8") as f:
+            self._config = yaml.safe_load(f) or {}
+
+        self._loaded = True
+
+    @property
+    def router_address(self) -> str:
+        """Router IP address."""
+        return str(self._config.get("router", {}).get("address", "")).strip()
+
+    @property
+    def router_user(self) -> str:
+        """Router SSH user."""
+        return str(self._config.get("router", {}).get("user", "root")).strip() or "root"
+
+    @property
+    def router_usb_dir(self) -> str:
+        """Router USB mount directory."""
+        return str(self._config.get("router", {}).get("usb_dir", "")).strip()
+
+    @property
+    def system_dir(self) -> str:
+        """Router system directory on USB."""
+        return f"{self.router_usb_dir}/System".rstrip("/")
+
+    @property
+    def services(self) -> dict[str, Any]:
+        """Enabled services configuration."""
+        return self._config.get("services", {})
+
+    def service_names(self) -> list[str]:
+        """Configured service names."""
+        return list(self.services.keys())
+
+    @property
+    def init_dir(self) -> Path:
+        """Initial managed repository state."""
+        return self._init_dir
+
+    @property
+    def sync_dir(self) -> Path:
+        """Local synchronized router state."""
+        return self._sync_dir
+
+    def get_service_config(self, service_name: str) -> dict[str, Any]:
+        """Get service-specific configuration from config.yml."""
+        return self.services.get(service_name, {})
+
+    @property
+    def dhcp_config(self) -> dict[str, Any]:
+        """DHCP-related config from config.yml."""
+        return self._config.get("dhcp", {})
+
+    @property
+    def excluded_static_candidate_macs(self) -> list[str]:
+        """Exact MAC addresses excluded from static-IP candidate list."""
+        values = self.dhcp_config.get("static_candidates", {}).get("exclude_macs", [])
+        return [str(value).strip().lower() for value in values if str(value).strip()]
+
+    @property
+    def excluded_static_candidate_prefixes(self) -> list[str]:
+        """MAC prefixes excluded from static-IP candidate list."""
+        values = self.dhcp_config.get("static_candidates", {}).get("exclude_mac_prefixes", [])
+        normalized: list[str] = []
+        for value in values:
+            prefix = str(value).strip().lower()
+            if not prefix:
+                continue
+            normalized.append(prefix.rstrip(":"))
+        return normalized
+
+    def is_service_enabled(self, service_name: str) -> bool:
+        """Check if a service is enabled."""
+        return bool(self.get_service_config(service_name).get("enabled", False))
+
+    def validate(self) -> list[str]:
+        """Validate configuration. Returns list of issues."""
+        issues = []
+
+        if not self.router_address:
+            issues.append("Router address not configured in config.yml")
+
+        if not self.router_usb_dir:
+            issues.append("Router USB directory not configured in config.yml")
+
+        if not self.init_dir.exists():
+            issues.append(f"Missing init directory: {self.init_dir}")
+
+        filebrowser_cfg = self.get_service_config("filebrowser")
+        if filebrowser_cfg.get("enabled"):
+            if not str(filebrowser_cfg.get("initial_username", "")).strip():
+                issues.append("services.filebrowser.initial_username must not be empty")
+            if not str(filebrowser_cfg.get("initial_password", "")).strip():
+                issues.append("services.filebrowser.initial_password must not be empty")
+
+        for service_name, key in (
+            ("adguard", "version"),
+            ("v2raya", "version"),
+            ("v2raya", "xray_version"),
+            ("filebrowser", "version"),
+        ):
+            value = str(self.get_service_config(service_name).get(key, "")).strip()
+            if value == "":
+                issues.append(f"services.{service_name}.{key} must not be empty")
+
+        static_candidates = self.dhcp_config.get("static_candidates", {})
+        for key in ("exclude_macs", "exclude_mac_prefixes"):
+            value = static_candidates.get(key, [])
+            if not isinstance(value, list):
+                issues.append(f"dhcp.static_candidates.{key} must be a list")
+
+        return issues
+
+
+_config: Config | None = None
+
+
+def get_config() -> Config:
+    """Get global configuration instance."""
+    global _config
+    if _config is None:
+        _config = Config()
+        _config.load()
+    return _config
+
+
+def reload_config() -> Config:
+    """Reload configuration from files."""
+    global _config
+    _config = Config()
+    _config.load()
+    return _config

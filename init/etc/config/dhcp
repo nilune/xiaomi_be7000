@@ -1,0 +1,11 @@
+# Example only. Do not push this file as-is.
+#
+# Static hosts are managed with:
+#   uv run router dhcp add <name> <mac> <ip>
+#   uv run router dhcp remove <value> [--by name|ip|mac]
+#
+# Example UCI section:
+# config host
+#     option name 'example_device'
+#     option mac 'aa:bb:cc:dd:ee:ff'
+#     option ip '192.168.31.50'

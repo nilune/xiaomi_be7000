@@ -1,0 +1,196 @@
+# V2rayA
+
+- [Автоматизация](#автоматизация)
+- [Установка](#установка)
+- [Настройка](#настройка)
+  - [Списки geo](#списки-geo)
+  - [Сам сервис](#сам-сервис)
+- [Обновление](#обновление)
+- [Удаление](#удаление)
+- [Дополнительно](#дополнительно)
+  - [Работа с сервисом](#работа-с-сервисом)
+  - [Бекап](#бекап)
+
+Сервис для проксирования запросов через прокси: UI через V2rayA и ядро на Xray.
+
+Сам сервис после полной настройки должен быть доступен по следующим адресам:
+- <http://${ROUTER_ADDRESS}:2017>
+- <http://v2raya>
+- <http://v2raya.lan>
+
+Ссылки:
+
+- [V2rayA Github](https://github.com/v2rayA/v2rayA)
+- [V2rayA Documentation](https://v2raya.org/en/)
+- [Xray Github](https://github.com/XTLS/Xray-core)
+- [Xray Documentation](https://xtls.github.io/)
+
+## Автоматизация
+
+Автоматизацией можно вынести общие стартовые файлы сервиса и включить его:
+
+```bash
+uv run router deploy run v2raya
+uv run router sync pull v2raya
+uv run router sync push v2raya
+```
+
+Что делает автоматизация:
+- деплоит стартовые файлы из `init/_System/v2raya`
+- копирует `init/data/services/v2raya.sh`
+- копирует `init/data/scripts/update_geo_files.sh`
+- скачивает бинарные версии `v2raya` и `xray`, если на роутере их еще нет или версия отличается
+- синхронизирует service-specific и runtime-конфиги через `sync/`
+
+Что она не делает:
+- не меняет за вас `/etc/config/firewall`
+- не настраивает сам сервис в Web UI
+- не применяет автоматически системные изменения из `init/etc/config/*`
+
+## Установка
+
+Сделана на основе наработок коллег:
+- [тг](https://t.me/xiaomi_be7000/1464/16668) от @T7m ([ссылка на github](https://github.com/Tesla777m/xiaomi_native_v2rinst))
+- [тг](https://t.me/xiaomi_be7000/1464/16868) от @Frogost
+
+1. Указать версии в `config.yml`:
+
+    ```yaml
+    services:
+      v2raya:
+        enabled: true
+        version: 2.2.7.5
+        xray_version: 26.4.15
+    ```
+
+   После этого `uv run router deploy run v2raya` сам скачает и выложит нужные бинарники.
+
+   Если хотите сделать это вручную, тогда можно скачать пакет `xray` с <https://github.com/xtls/xray-core/releases> и `v2raya` с <https://github.com/v2rayA/v2rayA/releases>:
+
+    ```bash
+    # TODO: Установка v2raya через `"https://github.com/v2rayA/v2rayA/releases/download/v${V2RAYA_VERSION}/v2raya_linux_arm64_${V2RAYA_VERSION}"` не работает
+    export V2RAYA_VERSION=2.2.7.3
+    wget -O tmp/v2raya "https://github.com/v2rayA/v2rayA/releases/download/v${V2RAYA_VERSION}/v2raya_linux_arm64_${V2RAYA_VERSION}"
+    chmod +x tmp/v2raya
+
+    export XRAY_VERSION=26.3.27
+    wget -qO ./tmp/temp.zip "https://github.com/XTLS/Xray-core/releases/download/v${XRAY_VERSION}/Xray-linux-arm64-v8a.zip" && unzip -q ./tmp/temp.zip -d ./tmp/xray && rm ./tmp/temp.zip
+    ```
+
+2. На внешнем накопителе в папке `System` создать подпапку `v2raya` (тут будут храниться все необходимое для v2raya) и пару системных папок:
+
+    ```bash
+    cd ${ROUTER_USB_DIR}/System
+    mkdir -p v2raya/usr/bin
+    ```
+
+3. Копируем туда на систему сам бинарь и необходимые конфиги:
+
+    ```bash
+    scp -O tmp/v2raya root@${ROUTER_ADDRESS}:${ROUTER_USB_DIR}/System/v2raya/usr/bin/v2raya
+    scp -O tmp/xray/xray root@${ROUTER_ADDRESS}:${ROUTER_USB_DIR}/System/v2raya/usr/bin/xray
+    scp -O -r init/_System/v2raya/etc root@${ROUTER_ADDRESS}:${ROUTER_USB_DIR}/System/v2raya
+    ```
+
+   Либо используем `uv run router deploy run v2raya`.
+
+4. Скопировать сам скрипт запуска v2raya (и убедитесь что в общем скрипте `/data/startup.sh` включен запуск этого скрипта):
+
+    ```bash
+    scp -O init/data/services/v2raya.sh root@${ROUTER_ADDRESS}:/data/services/v2raya.sh
+    scp -O init/data/startup.sh root@${ROUTER_ADDRESS}:/data/startup.sh
+    ```
+
+5. Тестируем запуск:
+
+    ```bash
+    /data/startup.sh
+    ```
+
+6. Так как трафик для xray маркируется с помощью `0x40/0xc0`, то добавляем в `/etc/config/firewall` правило для гостевой сети - это позволит трафику также маршрутизироваться через xray (если гостевой сети у вас нет - такое делать не нужно):
+
+    ```txt
+    ...
+    config rule 'guest_xray'
+        option name 'Allow Guest to Xray TPROXY'
+        option src 'guest'
+        option proto 'tcpudp'
+        option mark '0x40/0xc0'
+        option target 'ACCEPT'
+    ...
+    ```
+
+## Настройка
+
+### Списки geo
+
+1. Копируем скрипт регулярного обновления списков geo:
+
+    ```bash
+    scp -O -r init/data/scripts/update_geo_files.sh root@${ROUTER_ADDRESS}:/data/scripts/update_geo_files.sh
+    ```
+
+   Либо он уже будет развернут через `deploy run v2raya`.
+
+2. Добавляем его в регулярный авто-запуск по ночам в файл `/etc/crontabs/root` в конце:
+
+    ```bash
+    # Update V2RayA configs
+    0 5 * * 1 /data/scripts/update_geo_files.sh 2>&1
+    ```
+
+### Сам сервис
+
+Все в дальнейшем настраивается через Web UI на порте **2017** (например, <http://192.168.31.1:2017>):
+
+1. Добавляете свою подписку на VPN
+2. Проставляем следующие настройки в **Settings** последовательно:
+   1. Включено: режим разделения трафика такой же, как у порта с правилами
+      1. IP форвардинг
+      2. Port Sharing
+   2. tproxy
+   3. RoutingA -> см. [файл](examples/routingA.txt)
+   4. Выключено
+   5. Выключено
+   6. По-умолчанию
+   7. HTTP + TLS + Quic
+   8. Выключено
+   9. Обновлять подписки регулярно (в часах): 12
+   10. Следовать за Прозрачным прокси/Системным прокси
+
+## Обновление
+
+Для обновления - просто обновите нужные вам компоненты в директории `${ROUTER_USB_DIR}/System/v2raya`. В том числе именно таким образом следует обновлять бинари xray / v2raya.
+
+А для получение актуальных `etc` конфигов - взять пакеты `v2ray-core_5.30.0-r1_aarch64_generic.ipk` и `v2raya_2.2.7.3-r1_aarch64_generic.ipk` с сайта <https://archive.openwrt.org/releases/24.10.0-rc1/packages/aarch64_generic/packages/>. `ipk` переименовать в `tar.gz`. Распаковать этот архив. Достать из распакованных данных новый архив - `data.tag.gz`, его тоже распаковать и получим необходимую папку `data`. В ней подправить нужные конфиги и можно обновляться.
+
+## Удаление
+
+В целом все компоненты сервисы состоят из:
+1. Директории `${ROUTER_USB_DIR}/System/v2raya` - ее можно просто удалить с помощью `rm -rf <dir>`
+2. Множества симлинков в разных местах, но они будут стерты/бесполезны при перезапуске роутера
+3. Запуска самого компоненты в `/data/startup.sh`
+4. Скрипта запуска в `/data/services/v2raya.sh`
+
+Поэтому удалив это - вы удалите сервис.
+
+## Дополнительно
+
+### Работа с сервисом
+
+Через команды `service v2raya help` (и подобные команды). Логи находятся по пути `/data/usr/log/v2raya/`
+
+### Бекап
+
+Можно забекапить путем сохранения файлов - `${ROUTER_USB_DIR}/System/v2raya/etc/v2raya`. Скопировать себе на систему можно следующим образом:
+
+```bash
+mkdir -p sync/etc
+scp -O -r root@${ROUTER_ADDRESS}:/etc/v2raya sync/etc
+```
+
+Либо использовать:
+
+```bash
+uv run router sync pull v2raya
+```

@@ -1,0 +1,5 @@
+# Example only. Do not push this file as-is.
+#
+# Keep local changes for /etc/config/network in sync/ after pull.
+# This file exists only to document that network-level changes
+# remain a manual step outside of automated deploy.

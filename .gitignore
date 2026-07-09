@@ -5,8 +5,36 @@
 xmir-patcher
 
 # Temporary files
-tmp/**
-!tmp/.gitkeep
+tmp/
 
-# Backups
+# Sync state
 backup/**
+backups/**
+sync/**
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+env/
+.eggs/
+*.egg-info/
+*.egg
+dist/
+build/
+.mypy_cache/
+.ruff_cache/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Secrets
+.env
+config.yml

@@ -1,0 +1,15 @@
+# Example only. Do not push this file as-is.
+#
+# Manual snippets commonly used with this repository:
+#
+# config include 'startup'
+#     option type 'script'
+#     option path '/data/startup.sh'
+#     option enabled '1'
+#
+# config rule 'guest_xray'
+#     option name 'Allow Guest to Xray TPROXY'
+#     option src 'guest'
+#     option proto 'tcpudp'
+#     option mark '0x40/0xc0'
+#     option target 'ACCEPT'

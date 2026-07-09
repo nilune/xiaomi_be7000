@@ -1,0 +1,40 @@
+# Router Configuration
+# Единый файл конфигурации для всех сервисов
+
+router:
+  address: 192.168.31.1
+  user: root
+  usb_dir: /mnt/usb-ef8d1024
+
+dhcp:
+  static_candidates:
+    exclude_macs: []
+    exclude_mac_prefixes:
+      - "ec:fa:bc"
+
+services:
+  core:
+    enabled: true
+
+  adguard:
+    enabled: true
+    version: 0.107.74
+
+  v2raya:
+    enabled: true
+    version: 2.2.7.5
+    xray_version: 26.4.15
+
+  filebrowser:
+    enabled: false
+    version: latest
+    port: 8088
+    initial_username: admin
+    initial_password: admin
+    sources:
+      - path: /mnt/usb-ef8d1024
+        name: USB Drive
+      - path: /etc/config
+        name: Router Config
+      - path: /data
+        name: Router Data
