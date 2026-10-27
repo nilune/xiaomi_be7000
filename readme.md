@@ -135,8 +135,6 @@ export ROUTER_USB_DIR=/mnt/usb-ef8d1024
 5. `/etc/config/samba` и `/etc/samba/smb.conf` - настройки `samba`
 6. `iptables -t mangle -L -n -v` - списки `iptables` для трафика
 7. `netstat -ntplu` - открытые слушающие порты
-8. `sync/` - локальная рабочая копия актуальных конфигов и файлов роутера
-9. `init/` - стартовые файлы, которые используются для первичной раскатки сервисов
 
 ## Задачи
 
