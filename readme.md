@@ -1,8 +1,8 @@
 # XIAOMI BE7000
 
-Инструкция по подготовке роутера для работы с различными компонентами (v2raya, adguardhome, прочее).
+Практическая инструкция по подготовке роутера Xiaomi BE7000 и управлению его сервисами.
 
-> Все команды подразумевается запускать либо с роутера, либо из этой директории (даже для любых readme во вложенных директориях).
+> Все команды ниже запускайте либо на роутере, либо из корня этого репозитория.
 
 В документации используются общие переменные (поменяйте их согласно вашим настройкам):
 
@@ -12,12 +12,10 @@ export ROUTER_USB_DIR=/mnt/usb-ef8d1024
 ```
 
 - [Установка (база)](#установка-база)
-- [Установка (работа с сервисами)](#установка-работа-с-сервисами)
+- [Установка (enodia)](#установка-enodia)
 - [Полезное](#полезное)
   - [Бекап и как его делать](#бекап-и-как-его-делать)
   - [Выключение ненужных wifi сетей](#выключение-ненужных-wifi-сетей)
-  - [Донастройка IoT сети](#донастройка-iot-сети)
-  - [Настройка статических адресов](#настройка-статических-адресов)
 - [Важные файлы и полезные команды](#важные-файлы-и-полезные-команды)
 - [Задачи](#задачи)
 
@@ -25,7 +23,7 @@ export ROUTER_USB_DIR=/mnt/usb-ef8d1024
 
 > Сделано на основе 1-4 пунктов из [статьи на 4pda](https://4pda.to/forum/index.php?showtopic=1070166&view=findpost&p=131597534).
 
-1. Настраиваем ssh к роутеру с помощью [xmir-patcher](https://github.com/openwrt-xiaomi/xmir-patcher.git) (также смотри [инструкцию](https://4pda.to/forum/index.php?showtopic=1070166&view=findpost&p=131157661):
+1. Настраиваем ssh к роутеру с помощью [xmir-patcher](https://github.com/openwrt-xiaomi/xmir-patcher.git) (также смотри [инструкцию](https://4pda.to/forum/index.php?showtopic=1070166&view=findpost&p=131157661)):
    1. `git clone https://github.com/openwrt-xiaomi/xmir-patcher.git`
    2. (опционально, если нужен новый python) ставим через `uv`:
 
@@ -71,7 +69,7 @@ export ROUTER_USB_DIR=/mnt/usb-ef8d1024
         ```
 
     2. Вставляем флешку и через UI включаем виртуальную память
-    3. Устанавливаем docker - просто все кнопки по очереди. Потом заходим в UI и меняем пароль (дефолтный логин-пароль - admin:admin; менять через кнопку замочка сверху справа)
+    3. Устанавливаем docker - просто все кнопки по очереди. Потом заходим в UI и меняем пароль (дефолтный логин-пароль - `admin:admin`; менять через кнопку замочка сверху справа)
     4. Убираем аутентификацию для docker согласно [инструкции](https://4pda.to/forum/index.php?showtopic=1070166&view=findpost&p=131213506). То есть делаем:
         1. Создаем файл `/etc/crontabs/patches/disable_opa.sh`:
 
@@ -105,48 +103,9 @@ export ROUTER_USB_DIR=/mnt/usb-ef8d1024
         portainer/portainer-ce:latest
     ```
 
-## Установка (работа с сервисами)
+## Установка (enodia)
 
-Тут прописаны общие шаги, которые нужно сделать перед установкой сервисов.
-
-Сама настройка:
-
-1. На внешнем накопителе создать папку `System` - в ней будут устанавливаться все необходимые зависимости для устанавливаемых утилит.
-2. В директории `/data` выполнить следующее:
-    1. Создать директорию `services`, в которой будут находится все скрипты для запуска конкретных сервисов:
-
-          ```bash
-          mkdir -p /data/services
-          ```
-
-    2. Скопировать в нее скрипт `startup.sh`:
-
-          ```bash
-          scp -O startup.sh root@${ROUTER_ADDRESS}:/data
-          ```
-
-    3. Включить / выключить в этом скрипте необходимые компоненты (с помощью комментариев в функции `do_startup`)
-    4. Проставить в скрипте актуальный путь до вашего внешнего устройства (переменная `USB_DIR`)
-    5. Также создать директорию `scripts` для дополнительных скриптов:
-
-        ```bash
-        mkdir -p /data/scripts
-        ```
-
-3. В `/etc/config/firewall` добавить в самом конце следующее (это позволит запускать скрипт `/data/startup.sh` при каждом включение роутера):
-
-    ```bash
-    config include 'startup'
-        option type 'script'
-        option path '/data/startup.sh'
-        option enabled '1'
-    ```
-
-4. Далее идем в интересуемые вас директории и настраиваете согласно описанным там readme:
-   1. [core](core/readme.md) - специальная настройка для кастомизации системных настроек
-   2. [adguard](adguard/readme.md) - настройка DNS через AdGuardHome
-   3. [v2raya](v2raya/readme.md) - настройка прокси через V2rayA и Xray
-   4. [filebrowser](filebrowser/readme.md) - настройка доступа к данным через браузер
+См. [enodia-setup](./enodia-setup/)
 
 ## Полезное
 
@@ -155,119 +114,20 @@ export ROUTER_USB_DIR=/mnt/usb-ef8d1024
 1. Базовые ваши настройки: скриншоты и дубли любых файлов, которые вам важны и нужны
 2. Общие настройки роутера: на web странице роутера на странице **Settings** -> **System Settings** есть бекап настроек и их восстановление
 3. Вся система: с помощью `xmir-patcher`
+4. Для рабочей синхронизации конфигов теперь используйте `uv run router sync pull ...`, результат будет складываться в `sync/`
 
 ### Выключение ненужных wifi сетей
 
 Согласно комментарию на [4pda](https://4pda.to/forum/index.php?showtopic=1070166&view=findpost&p=130785221) выключаем ненужные wifi сетей в файле `/etc/config/wireless`:
-1. вредная miaiot сеть от xiaomi: у `config wifi-iface 'miot_2G'` выставляем `option disabled '1'`
-2. mesh виртуальную сеть: у `config wifi-iface 'bh_ap'` выставляем `option disabled '1'`
-3. guest / iot сети если вам не нужен какой-то из диапазонов (например 2G или 5G): также выставляем `option disabled '1'` в необходимых местах
-
-### Донастройка IoT сети
-
-По дефолту IoT сеть находится в LAN и в ней все равно нельзя настраивать статические адреса, поэтому появилось желание перенести эту сеть в уже созданную отдельную `miot` сеть на адресах `192.168.32.*` и как внутри прописать статику:
-1. Включаем в приложение Xiaomi саму IoT сеть
-2. В файле `/etc/config/wireless` ставим следующие опции в соответствующем разделе:
-
-    ```txt
-    config wifi-iface 'iot_2g'
-        option network 'miot'
-
-    config wifi-iface 'iot_5g'
-        option network 'miot'
-
-3. В файле `/etc/config/firewall` добавляем (настройка для **xray** нужна только если вы настраивали **v2raya** на роутере):
-
-    ```txt
-    config zone 'miot_zone'
-        option name 'miot'
-        option network 'miot'
-        option input 'REJECT'
-        option forward 'REJECT'
-        option output 'ACCEPT'
-
-    config rule 'miot_xray'
-        option name 'Allow MIOT to Xray TPROXY'
-        option src 'miot'
-        option proto 'tcpudp'
-        option mark '0x40/0xc0'
-        option target 'ACCEPT'
-
-    config rule 'miot_dns'
-        option name 'Allow MIOT DNS Queries'
-        option src 'miot'
-        option dest_port '53'
-        option proto 'tcpudp'
-        option target 'ACCEPT'
-
-    config rule 'miot_dhcp'
-        option name 'Allow MIOT DHCP request'
-        option src 'miot'
-        option src_port '67-68'
-        option dest_port '67-68'
-        option proto 'udp'
-        option target 'ACCEPT'
-    ```
-
-    И убираем (или просто комментируем):
-
-    ```txt
-    config include 'miot'
-        option type 'script'
-        option path '/lib/firewall.sysapi.loader miot'
-        option enabled '1'
-        option reload '1'
-    ```
-
-4. В файле `/etc/config/dhcp` ставим следующие опции в соответствующем разделе:
-
-    ```txt
-    config dhcp 'miot'
-        option leasetime '12h'
-        option ra_default '1'
-        option ra 'server'
-        option ra_preference 'high'
-        option ra_maxinterval '20'
-        option ra_lifetime '1800'
-        list ra_flags 'managed-config'
-        list ra_flags 'other-config'
-        option router '192.168.32.1'
-        option dns1 '192.168.32.1'
-    ```
-
-5. В файле `/etc/config/network` ставим следующие опции в соответствующем разделе:
-
-    ```txt
-    config interface 'miot'
-        option bridge_empty '1'
-    ```
-
-TODO: доступ через firewall с определенных адресов к samba на роутере или в целом ко всему
-
-### Настройка статических адресов
-
-TODO: how?
-Статические IP адреса прописываются в файле `/etc/config/dhcp` на основе файла `/tmp/dhcp.leases`:
-
-```bash
-# Настраиваем настройки в файле /etc/config/dhcp.add
-# Пример:
-#
-# config host 'heated_towel_rail'
-#    option mac 'd8:c8:0c:f4:56:bf'
-#    option ip '192.168.32.115'
-#    option name 'heated_towel_rail'
-
-# FIXME: это просто не работает, импорт все перетирает! опасная операция!!!
-scp -O backup/etc/config/dhcp.add root@${ROUTER_ADDRESS}:${ROUTER_USB_DIR}/System/dhcp.add
-ssh root@${ROUTER_ADDRESS} "uci import dhcp < ${ROUTER_USB_DIR}/System/dhcp.add && uci commit dhcp"
-```
+1. вредная `miaiot` сеть от xiaomi: у `config wifi-iface 'miot_2G'` выставляем `option disabled '1'`
+2. `mesh` виртуальную сеть: у `config wifi-iface 'bh_ap'` выставляем `option disabled '1'`
+3. `guest / iot` сети если вам не нужен какой-то из диапазонов (например 2G или 5G): также выставляем `option disabled '1'` в необходимых местах
 
 ## Важные файлы и полезные команды
 
 1. `/etc/config/network` - все сети на роутере (в том числе `docker`, `lan`, `guest`)
 2. `/etc/config/wireless` - wifi сети и их настройка
-3. `/etc/config/firewall` - правила firewall между сетями, и, как ни странно, именно тут вызываются начальные скрипты настройке вашей ОС с помощью хака
+3. `/etc/config/firewall` - правила firewall между сетями, и, как ни странно, именно тут вызываются начальные скрипты настройки вашей ОС с помощью хака
 4. `/etc/config/dhcp` - настройка dhcp, тут можно вручную прописывать статику. Дополнительно:
    - `/tmp/dhcp.leases` - в этом файле все временно выданные IP адреса (не статика)
    - `/etc/init.d/dnsmasq restart` - команда для применения конфига после изменений
@@ -281,5 +141,3 @@ ssh root@${ROUTER_ADDRESS} "uci import dhcp < ${ROUTER_USB_DIR}/System/dhcp.add 
 - [ ] Пофиксить права доступа на внешней флешке, чтобы можно подключаться через smb
 - [ ] Работа с диском
 - [ ] https://post.smzdm.com/p/akk9nvv8/ - home assistant и прочее
-- [ ] подготовить готовые скрипты создания бекапа и восстановления из него
-- [ ] улучшить все конфиги с помощью ИИ агента, сделать автоматизацию раскатки
